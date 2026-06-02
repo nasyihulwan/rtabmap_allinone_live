@@ -1,0 +1,139 @@
+# ─────────────────────────────────────────────────────────────
+# QoS Override — disesuaikan dengan isi rosbag
+# rosbag2_2026_04_10-03_17_38
+#
+# Cara pakai (sudah dihandle otomatis oleh launch file,
+# tapi bisa juga dipakai manual):
+#
+#   ros2 bag play ~/ws/rosbag2_2026_04_10-03_17_38 \
+#     --clock --rate 0.5 \
+#     --qos-profile-overrides-path qos_override.yaml
+# ─────────────────────────────────────────────────────────────
+
+# ── LiDAR ─────────────────────────────────────────────────────
+/velodyne_points:
+  publisher:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 5
+  subscription:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 5
+
+# ── Camera Color (compressed di bag) ──────────────────────────
+/camera/camera/color/image_raw/compressed:
+  publisher:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 3
+  subscription:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 3
+
+# ── Camera Depth (compressedDepth di bag) ─────────────────────
+/camera/camera/aligned_depth_to_color/image_raw/compressedDepth:
+  publisher:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 3
+  subscription:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 3
+
+# ── Camera Info ───────────────────────────────────────────────
+/camera/camera/color/camera_info:
+  publisher:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+  subscription:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+
+# ── Odometry ──────────────────────────────────────────────────
+/a200_1060/platform/odom:
+  publisher:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 10
+  subscription:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 10
+
+# ── TF (namespace robot) ──────────────────────────────────────
+/a200_1060/tf:
+  publisher:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 100
+  subscription:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 100
+
+/a200_1060/tf_static:
+  publisher:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+  subscription:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+
+# ── TF Global ─────────────────────────────────────────────────
+/tf:
+  publisher:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 100
+  subscription:
+    reliability: reliable
+    durability: volatile
+    history: keep_last
+    depth: 100
+
+/tf_static:
+  publisher:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+  subscription:
+    reliability: reliable
+    durability: transient_local
+    history: keep_last
+    depth: 1
+
+# ── IMU ───────────────────────────────────────────────────────
+/a200_1060/sensors/imu_0/data:
+  publisher:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 10
+  subscription:
+    reliability: best_effort
+    durability: volatile
+    history: keep_last
+    depth: 10
