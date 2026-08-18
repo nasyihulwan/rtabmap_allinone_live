@@ -141,10 +141,20 @@ def generate_launch_description():
     )
 
     # ── Node 4: SegFormer (delay 1s — YOLO must be up first) ─────────────
+    # [H2] enable_segformer — SegFormer publish topik terpisah
+    # (/semantic/segformer/*) yang TIDAK di-subscribe oleh semantic_projector
+    # atau semantic_map_exporter (jalur reid/logger cuma pakai label/instance/
+    # confidence_image dari yolo_detector.py) — jadi aman dimatikan tanpa
+    # memengaruhi jalur itu. Default 'true' supaya perilaku live tidak berubah.
+    enable_segformer_arg = DeclareLaunchArgument(
+        'enable_segformer', default_value='true',
+        description='false=jangan jalankan segformer_node.py (mis. saat tidak ada GPU/torch)')
+    enable_segformer = LaunchConfiguration('enable_segformer')
     segformer_node = TimerAction(
         period=1.0,
         actions=[
             ExecuteProcess(
+                condition=IfCondition(enable_segformer),
                 cmd=[
                     'python3', os.path.join(semantic_dir, 'segformer_node.py'),
                     '--ros-args',
@@ -163,6 +173,17 @@ def generate_launch_description():
         'export_model_path', default_value=model_default,
         description='YOLO model path untuk class names di semantic_map_exporter')
     export_model_path = LaunchConfiguration('export_model_path')
+    # [H2] Sebelumnya hardcode literal di cmd (merge_dist:=1.5, min_points:=20),
+    # tidak bisa di-override — padahal ini persis parameter inti eksperimen
+    # K1/K2. Dijadikan launch arg, default TIDAK berubah (behavior lama utuh).
+    merge_dist_arg = DeclareLaunchArgument(
+        'merge_dist', default_value='1.5',
+        description='[checklist B2] Ambang jarak re-id (meter) — parameter inti K1/K2')
+    merge_dist = LaunchConfiguration('merge_dist')
+    min_points_arg = DeclareLaunchArgument(
+        'min_points', default_value='20',
+        description='Jumlah titik minimum sebelum instance dievaluasi untuk re-id')
+    min_points = LaunchConfiguration('min_points')
     # [clear] Kalau true, exporter mulai dari kosong, abaikan YAML lama.
     clear_on_start_arg = DeclareLaunchArgument(
         'clear_on_start', default_value='false',
@@ -266,9 +287,9 @@ def generate_launch_description():
                     'python3', os.path.join(semantic_dir, 'semantic_map_exporter.py'),
                     '--ros-args',
                     '-p', ['model_path:=', export_model_path],
-                    '-p', 'min_points:=20',
+                    '-p', ['min_points:=', min_points],
                     '-p', 'export_rate:=5.0',
-                    '-p', 'merge_dist:=1.5',
+                    '-p', ['merge_dist:=', merge_dist],
                     '-p', ['clear_on_start:=', clear_on_start],
                     '-p', ['enable_reid:=', enable_reid],
                     '-p', ['enable_position_logger:=', enable_position_logger],
@@ -328,6 +349,7 @@ def generate_launch_description():
         clear_on_start_arg,
         model_path_arg,
         segformer_model_arg,
+        enable_segformer_arg,
         device_arg,
         confidence_arg,
         iou_nms_arg,
@@ -338,6 +360,8 @@ def generate_launch_description():
         lidar_topic_arg,
         lidar_dilate_px_arg,
         model_path_export_arg,
+        merge_dist_arg,
+        min_points_arg,
         enable_reid_arg,
         enable_position_logger_arg,
         position_log_dir_arg,
