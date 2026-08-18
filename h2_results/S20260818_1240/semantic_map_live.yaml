@@ -1,0 +1,30 @@
+dell-e_17:
+  cell_count: 7180
+  class_id: 13
+  x: 0.5574
+  y: -0.5361
+door_9:
+  cell_count: 2685
+  class_id: 1
+  x: -3.0895
+  y: 8.2968
+fire-hydrant-box_6:
+  cell_count: 778
+  class_id: 3
+  x: -5.0108
+  y: 20.8437
+shelf_4:
+  cell_count: 4516
+  class_id: 6
+  x: -1.2302
+  y: 26.3338
+trash-can_11:
+  cell_count: 2413
+  class_id: 10
+  x: -6.5114
+  y: 2.9338
+trash-can_19:
+  cell_count: 320
+  class_id: 10
+  x: 1.4048
+  y: 0.3072
