@@ -1,0 +1,29 @@
+# collection_mode.yaml — [checklist B3] Preset parameter untuk seluruh
+# sesi pengumpulan data Fase K1 & K2. Menyalakan logger (position +
+# reid timing) dan MEMATIKAN re-id (baseline naif) secara default —
+# supaya data mentah level-deteksi terekam TANPA ada penggabungan yang
+# menghilangkan informasi (lihat rasional "logger sebelum merge" di
+# semantic_map_exporter.py).
+#
+# Kalau sesi spesifik butuh re-id AKTIF (mis. menguji ambang batas
+# heuristik/kalibrasi di Fase K2, bukan baseline), override enable_reid
+# secara eksplisit di command line — override SELALU menang di atas
+# --params-file (aturan precedence ROS2: -p key:=value setelah
+# --params-file mengalahkan isi file).
+#
+# Pakai (manual, tanpa launch file):
+#   python3 semantic/semantic_map_exporter.py --ros-args \
+#       --params-file config/collection_mode.yaml
+#
+# Pakai (lewat launch file, param individual — preset ini belum
+# di-wire otomatis ke semantic_only.launch.py, override manual):
+#   ros2 launch launch/semantic_only.launch.py \
+#       enable_reid:=false enable_position_logger:=true
+#
+# Preset ini WAJIB dipakai identik untuk seluruh sesi K1 dan K2 (checklist
+# B3) — jangan diubah-ubah nilainya di tengah periode pengumpulan data.
+/**:
+  ros__parameters:
+    enable_reid: false
+    enable_position_logger: true
+    clear_on_start: false

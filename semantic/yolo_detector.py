@@ -10,7 +10,12 @@
 ║    /semantic/image_annotated   (rgb8)  — mask + label overlay   ║
 ║    /semantic/label_image       (mono8) — class_id+1 per pixel   ║
 ║    /semantic/instance_image    (mono8) — instance_id per pixel  ║
+║    /semantic/confidence_image  (mono8) — round(conf*255)/pixel  ║
 ║    /yolo/detection_classes     (String) — JSON class name list  ║
+║    /yolo/detections            (String) — JSON: stamp + list    ║
+║       {class_id,class_name,confidence,tracker_id,bbox_xyxy}     ║
+║       per deteksi (checklist J2 — data mentah utk rekonstruksi  ║
+║       bbox dari rosbag tanpa jalankan YOLO ulang)               ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
 
@@ -37,6 +42,32 @@ INSTANCE_COLORS_BGR = [
 ]
 
 
+# ─────────────────────────────────────────────────────────────────
+# [J2] Pure helper — bentuk payload deteksi mentah (bbox+class+
+# confidence+tracker_id) untuk /yolo/detections. Dipisah dari callback()
+# supaya bisa diuji tanpa mock Node/YOLO Results.
+# ─────────────────────────────────────────────────────────────────
+def _build_detections_payload(cls_ids: list, inst_ids: list, confs: list,
+                               bboxes: list, class_names: dict) -> list:
+    """
+    cls_ids/inst_ids/confs/bboxes: list sejajar panjang N (satu per deteksi).
+    bboxes: list of [x1,y1,x2,y2] piksel, resolusi citra asli.
+    class_names: {class_id: name} — dari model.names.
+
+    Returns list of dict: {class_id, class_name, confidence, tracker_id, bbox_xyxy}.
+    """
+    out = []
+    for cls_id, iid, cf, bbox in zip(cls_ids, inst_ids, confs, bboxes):
+        out.append({
+            'class_id':   cls_id,
+            'class_name': class_names.get(cls_id, str(cls_id)),
+            'confidence': round(cf, 4),
+            'tracker_id': iid,
+            'bbox_xyxy':  [round(v, 2) for v in bbox],
+        })
+    return out
+
+
 class SimpleIoUTracker:
     def __init__(self, iou_threshold=0.3, max_age=10):
         self.iou_threshold = iou_threshold
@@ -50,24 +81,39 @@ class SimpleIoUTracker:
             if self.tracks[tid]['age'] > self.max_age:
                 del self.tracks[tid]
 
-        instance_ids = []
+        # Snapshot track dari frame-frame sebelumnya — semua matching di
+        # bawah ini hanya boleh merujuk ke sini, bukan ke self.tracks yang
+        # sedang berubah, supaya track baru yang dibuat oleh satu deteksi
+        # tidak "kelihatan" oleh deteksi lain di frame yang sama.
+        existing_tracks = dict(self.tracks)
+
+        # Cari kandidat match untuk tiap deteksi dulu, tanpa eksekusi apa pun.
+        best_matches = []
         for mask, cls_id in zip(masks, class_ids):
             best_iou, best_tid = 0.0, None
-            for tid, track in self.tracks.items():
+            for tid, track in existing_tracks.items():
                 if track['class_id'] != cls_id:
                     continue
                 iou = self._iou(mask, track['mask'])
                 if iou > best_iou:
                     best_iou, best_tid = iou, tid
+            best_matches.append(best_tid if best_iou >= self.iou_threshold else None)
 
-            if best_iou >= self.iou_threshold and best_tid is not None:
-                self.tracks[best_tid].update({'mask': mask, 'age': 0})
-                instance_ids.append(best_tid)
-            else:
+        # Baru eksekusi: update track lama yang cocok...
+        instance_ids = [None] * len(best_matches)
+        for i, tid in enumerate(best_matches):
+            if tid is not None:
+                self.tracks[tid].update({'mask': masks[i], 'age': 0})
+                instance_ids[i] = tid
+
+        # ...lalu buat track baru untuk sisanya, ditambahkan bareng di akhir.
+        for i, tid in enumerate(best_matches):
+            if tid is None:
                 nid = self.next_id
                 self.next_id = (self.next_id % 254) + 1
-                self.tracks[nid] = {'class_id': cls_id, 'mask': mask, 'age': 0}
-                instance_ids.append(nid)
+                self.tracks[nid] = {'class_id': class_ids[i], 'mask': masks[i], 'age': 0}
+                instance_ids[i] = nid
+
         return instance_ids
 
     @staticmethod
@@ -89,6 +135,12 @@ class YoloDetectorNode(Node):
         self.declare_parameter('process_every_n', 3)
         self.declare_parameter('iou_threshold',   0.3)
         self.declare_parameter('max_track_age',   10)
+        # [D3] Sebelumnya TIDAK di-set eksplisit — Ultralytics diam-diam
+        # pakai default (iou=0.7, imgsz=640) yang tidak pernah tercatat di
+        # mana pun. Checklist D3: "Nilainya tidak berubah antar sesi" tidak
+        # bisa dijamin kalau nilainya bahkan tidak pernah eksplisit/direkam.
+        self.declare_parameter('iou_nms',         0.7)
+        self.declare_parameter('imgsz',           640)
 
         model_path   = self.get_parameter('model_path').value
         self.conf    = self.get_parameter('confidence').value
@@ -96,9 +148,11 @@ class YoloDetectorNode(Node):
         self.every_n = self.get_parameter('process_every_n').value
         iou_thr      = self.get_parameter('iou_threshold').value
         max_age      = self.get_parameter('max_track_age').value
+        self.iou_nms = self.get_parameter('iou_nms').value
+        self.imgsz   = self.get_parameter('imgsz').value
 
         self.get_logger().info(f'Loading: {model_path}')
-        self.model = YOLO(model_path)
+        self.model = YOLO(model_path, task='segment')
         # Tidak pakai .to() karena TRT engine tidak support method ini
         # device dikirim langsung ke predict() saat inference
         self.tracker = SimpleIoUTracker(iou_thr, max_age)
@@ -112,13 +166,27 @@ class YoloDetectorNode(Node):
         self.pub_ann   = self.create_publisher(Image,  '/semantic/image_annotated',    10)
         self.pub_lbl   = self.create_publisher(Image,  '/semantic/label_image',         10)
         self.pub_inst  = self.create_publisher(Image,  '/semantic/instance_image',      10)
+        # [confidence] mono8, nilai = round(confidence*255) per piksel mask —
+        # dipacking projector ke channel B pointcloud (sebelumnya selalu 0).
+        self.pub_conf  = self.create_publisher(Image,  '/semantic/confidence_image',    10)
         self.pub_cls   = self.create_publisher(String, '/yolo/detection_classes',       10)
+        # [J2] Data deteksi mentah terstruktur (bbox+class+confidence+
+        # tracker_id) — SEBELUMNYA tidak ada topik untuk ini sama sekali,
+        # cuma citra ter-encode per-piksel (label/instance/confidence_image)
+        # atau citra yang sudah tergambar (image_annotated). Topik ini
+        # dipakai supaya bounding box bisa digambar ulang dari hasil rekam
+        # rosbag tanpa perlu jalankan YOLO lagi. JSON via String — pola
+        # sama dengan /yolo/detection_classes, bukan vision_msgs (paket itu
+        # tidak dipakai di mana pun di project ini, tidak mau nambah
+        # dependency baru yang tidak bisa saya build-test di sini).
+        self.pub_det   = self.create_publisher(String, '/yolo/detections',              10)
 
         self._fc, self._td = 0, 0
         self.get_logger().info(
             f'Ready — {len(self.model.names)} classes | '
             f'device: {self.dev} | every {self.every_n} frames | '
-            f'IoU: {iou_thr} | max_age: {max_age}')
+            f'tracker IoU: {iou_thr} | max_age: {max_age} | '
+            f'conf: {self.conf} | NMS IoU: {self.iou_nms} | imgsz: {self.imgsz}')
 
     def callback(self, msg):
         self._fc += 1
@@ -129,16 +197,25 @@ class YoloDetectorNode(Node):
             (msg.height, msg.width, 3)).copy()
         h, w = img.shape[:2]
 
-        results = self.model(img, conf=self.conf, device=self.dev, verbose=False)
+        results = self.model(img, conf=self.conf, iou=self.iou_nms, imgsz=self.imgsz,
+                              device=self.dev, verbose=False)
         result  = results[0]
 
         lbl  = np.zeros((h, w), dtype=np.uint8)
         inst = np.zeros((h, w), dtype=np.uint8)
+        conf_img = np.zeros((h, w), dtype=np.uint8)
         ann  = img.copy()
+
+        detections_payload = []
 
         if result.masks is not None and result.boxes is not None:
             raw_masks = result.masks.data.cpu().numpy()
             cls_ids   = [int(result.boxes.cls[i]) for i in range(len(raw_masks))]
+            confs     = [float(result.boxes.conf[i]) for i in range(len(raw_masks))]
+            # [J2] xyxy piksel, di resolusi citra ASLI (msg.width x msg.height)
+            # — sama dengan raw_masks, TIDAK perlu diskalakan ulang karena
+            # Ultralytics sudah mengembalikan xyxy pada resolusi input asli.
+            bboxes    = result.boxes.xyxy.cpu().numpy().tolist()
             bin_masks = [
                 cv2.resize(raw_masks[i], (w, h),
                            interpolation=cv2.INTER_NEAREST) > 0.5
@@ -146,9 +223,14 @@ class YoloDetectorNode(Node):
             ]
             inst_ids = self.tracker.update(bin_masks, cls_ids)
 
-            for mask, cls_id, iid in zip(bin_masks, cls_ids, inst_ids):
+            detections_payload = _build_detections_payload(
+                cls_ids, inst_ids, confs, bboxes, self.model.names)
+
+            for mask, cls_id, iid, cf in zip(bin_masks, cls_ids, inst_ids, confs):
                 lbl[mask]  = np.uint8(cls_id + 1)
                 inst[mask] = np.uint8(iid)
+                # round supaya 1.0 -> 255 persis, bukan 254 akibat truncation
+                conf_img[mask] = np.uint8(round(min(max(cf, 0.0), 1.0) * 255))
 
                 color   = INSTANCE_COLORS_BGR[iid % len(INSTANCE_COLORS_BGR)]
                 colored = np.zeros_like(ann)
@@ -166,7 +248,21 @@ class YoloDetectorNode(Node):
 
         self.pub_lbl.publish(self._mono8(lbl, msg.header))
         self.pub_inst.publish(self._mono8(inst, msg.header))
+        self.pub_conf.publish(self._mono8(conf_img, msg.header))
         self.pub_ann.publish(self._rgb8(ann, msg.header))
+
+        # [J2] std_msgs/String tidak punya field header -> stamp dari
+        # msg.header (frame RGB yang diproses) disertakan EKSPLISIT di
+        # payload, supaya post-processing bisa sinkronkan ke frame RGB yang
+        # tepat meski String sendiri tidak ter-timestamp oleh ROS.
+        det_msg = String()
+        det_msg.data = json.dumps({
+            'stamp_sec':     msg.header.stamp.sec,
+            'stamp_nanosec': msg.header.stamp.nanosec,
+            'frame_id':      msg.header.frame_id,
+            'detections':    detections_payload,
+        })
+        self.pub_det.publish(det_msg)
 
         # Publish class names for classify_scene() in segformer_node
         detected_names = [

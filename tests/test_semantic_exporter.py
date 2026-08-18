@@ -8,6 +8,7 @@ Fokus: logic centroid, label, YAML output, filtering.
 
 import sys
 import os
+import csv
 import yaml
 import struct
 import tempfile
@@ -19,8 +20,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ── Mock semua ROS2 modules sebelum import ────────────────────────────────
 _ROS_MOCKS = [
-    'rclpy', 'rclpy.node', 'rclpy.qos',
+    'rclpy', 'rclpy.node', 'rclpy.qos', 'rclpy.duration',
     'sensor_msgs', 'sensor_msgs.msg',
+    'geometry_msgs', 'geometry_msgs.msg',
+    'tf2_ros',
 ]
 for _m in _ROS_MOCKS:
     sys.modules[_m] = MagicMock()
@@ -33,7 +36,13 @@ sys.modules['rclpy.node'].Node = _mock_node_cls
 sys.path.insert(0, os.path.join(ROOT, 'semantic'))
 
 # Import hanya fungsi helper — bukan full Node (avoid ROS init)
-from semantic_map_exporter import decode_pointcloud2_xyz_rgb, _load_class_names   # noqa: E402
+# [E2] _find_reid_candidate pindah ke reid_core.py — diuji di
+# tests/test_reid_core.py, bukan di sini lagi.
+from semantic_map_exporter import (   # noqa: E402
+    decode_pointcloud2_xyz_rgb, _load_class_names,
+    _group_points_by_detection, _open_session_csv, _new_session_id,
+    _sha256_file, _run_cmd, _check_disk_space,
+)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -266,6 +275,210 @@ class TestExportYamlFormat(unittest.TestCase):
         _ = obj['cell_count']    # harus tidak raise KeyError
 
 
+class TestGroupPointsByDetection(unittest.TestCase):
+    """[logger] Test grouping titik per (class_id, tracker_id) dalam 1 frame."""
+
+    def test_groups_correctly(self):
+        xs    = np.array([1.0, 1.2, 5.0])
+        ys    = np.array([2.0, 2.2, 6.0])
+        zs    = np.array([0.1, 0.1, 0.2])
+        cids  = np.array([0, 0, 1])
+        iids  = np.array([1, 1, 1])
+        confs = np.array([0.8, 0.6, 0.9])
+        out = _group_points_by_detection(xs, ys, zs, cids, iids, confs)
+
+        self.assertEqual(len(out), 2)
+        d0 = next(d for d in out if d['class_id'] == 0)
+        d1 = next(d for d in out if d['class_id'] == 1)
+        self.assertEqual(d0['n_points'], 2)
+        self.assertAlmostEqual(d0['x'], 1.1, places=3)
+        self.assertAlmostEqual(d0['y'], 2.1, places=3)
+        self.assertEqual(d0['tracker_id'], 1)
+        self.assertAlmostEqual(d0['confidence'], 0.7, places=3)   # mean(0.8, 0.6)
+        self.assertEqual(d1['n_points'], 1)
+        self.assertAlmostEqual(d1['x'], 5.0, places=3)
+        self.assertAlmostEqual(d1['confidence'], 0.9, places=3)
+
+    def test_empty_input(self):
+        out = _group_points_by_detection(
+            np.array([]), np.array([]), np.array([]),
+            np.array([], dtype=int), np.array([], dtype=int), np.array([]))
+        self.assertEqual(out, [])
+
+    def test_distinguishes_same_class_different_tracker(self):
+        """Dua tracker_id berbeda dalam kelas sama → dua baris terpisah."""
+        xs, ys, zs = np.array([1.0, 9.0]), np.array([1.0, 9.0]), np.array([0.0, 0.0])
+        cids, iids = np.array([0, 0]), np.array([1, 2])
+        confs = np.array([0.5, 0.5])
+        out = _group_points_by_detection(xs, ys, zs, cids, iids, confs)
+        self.assertEqual(len(out), 2)
+        self.assertEqual({d['tracker_id'] for d in out}, {1, 2})
+
+
+class TestSessionId(unittest.TestCase):
+    """[C1] Format session_id: S<YYYYMMDD>_<HHMM>."""
+
+    def test_format(self):
+        sid = _new_session_id()
+        self.assertRegex(sid, r'^S\d{8}_\d{4}$')
+
+
+class TestOpenSessionCsv(unittest.TestCase):
+    """[A4] Satu file CSV per sesi, tidak pernah menimpa sesi lama."""
+
+    def test_creates_file_with_header(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, f, writer = _open_session_csv(d, 'det_S1.csv', ['a', 'b', 'c'])
+            f.close()
+            self.assertTrue(os.path.exists(path))
+            with open(path) as fh:
+                self.assertEqual(fh.readline().strip(), 'a,b,c')
+
+    def test_never_overwrites_existing_session_file(self):
+        """[checklist I] Kalau nama file sudah ada, jangan timpa — pakai sufiks."""
+        with tempfile.TemporaryDirectory() as d:
+            path1, f1, _ = _open_session_csv(d, 'det_S1.csv', ['a'])
+            f1.write('sentinel-data-sesi-lama\n')
+            f1.close()
+
+            path2, f2, _ = _open_session_csv(d, 'det_S1.csv', ['a'])
+            f2.close()
+
+            self.assertNotEqual(path1, path2)
+            with open(path1) as fh:
+                content = fh.read()
+            self.assertIn('sentinel-data-sesi-lama', content,
+                'file sesi lama tidak boleh tertimpa oleh sesi baru dengan nama sama')
+
+    def test_creates_directory_if_missing(self):
+        with tempfile.TemporaryDirectory() as d:
+            nested = os.path.join(d, 'nested', 'logs')
+            path, f, _ = _open_session_csv(nested, 'det_S1.csv', ['a'])
+            f.close()
+            self.assertTrue(os.path.exists(path))
+
+
+class TestH4CrashRecovery(unittest.TestCase):
+    """
+    [Uji Terima H4] Matikan paksa node di tengah sesi -> file log harus
+    terbaca utuh sampai baris terakhir yang sempat di-flush, tidak korup.
+
+    Simulasi "kill -9": tulis + flush() beberapa baris, JANGAN panggil
+    close() (persis situasi proses dibunuh paksa sebelum sempat cleanup),
+    lalu baca file itu lewat file HANDLE TERPISAH (meniru proses lain/
+    proses baru yang membaca file setelah crash).
+    """
+
+    def test_flushed_rows_survive_without_close(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, f, writer = _open_session_csv(d, 'det_S1.csv', ['a', 'b', 'c'])
+            for i in range(5):
+                writer.writerow([i, i * 2, f'row{i}'])
+                f.flush()   # persis pola _log_frame_detections/_log_reid_timing
+            # SENGAJA tidak close() — simulasi proses dibunuh paksa di sini.
+
+            with open(path) as fh:
+                rows = list(csv.reader(fh))
+            self.assertEqual(rows[0], ['a', 'b', 'c'])
+            self.assertEqual(len(rows), 6)   # header + 5 baris data
+            for i in range(5):
+                self.assertEqual(rows[i + 1], [str(i), str(i * 2), f'row{i}'])
+
+    def test_last_unflushed_write_may_be_lost_but_prior_rows_intact(self):
+        """
+        Baris yang di-write() TANPA sempat flush() sebelum crash boleh
+        hilang (tidak dijamin) — tapi baris-baris SEBELUMNYA yang sudah
+        di-flush harus tetap utuh, bukan ikut korup/truncated.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            path, f, writer = _open_session_csv(d, 'det_S1.csv', ['a'])
+            writer.writerow(['sudah_flush_1']); f.flush()
+            writer.writerow(['sudah_flush_2']); f.flush()
+            writer.writerow(['belum_flush_saat_crash'])   # tidak di-flush
+
+            with open(path) as fh:
+                content = fh.read()
+            self.assertIn('sudah_flush_1', content)
+            self.assertIn('sudah_flush_2', content)
+            # Baris yang sudah ter-flush tidak boleh terpotong/korup
+            lines = [ln for ln in content.splitlines() if ln]
+            self.assertEqual(lines[0], 'a')
+            self.assertEqual(lines[1], 'sudah_flush_1')
+            self.assertEqual(lines[2], 'sudah_flush_2')
+
+
+class TestSha256File(unittest.TestCase):
+    """[D2] Hash model — deteksi kalau model di-retrain tanpa disadari."""
+
+    def test_known_content_hash(self):
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            f.write(b'hello world')
+            path = f.name
+        try:
+            import hashlib
+            expected = hashlib.sha256(b'hello world').hexdigest()
+            self.assertEqual(_sha256_file(path), expected)
+        finally:
+            os.unlink(path)
+
+    def test_missing_file_returns_none(self):
+        self.assertIsNone(_sha256_file('/tidak/ada/file/ini.pt'))
+
+    def test_empty_path_returns_none(self):
+        self.assertIsNone(_sha256_file(''))
+
+    def test_different_content_different_hash(self):
+        """Kalau model di-retrain (isi file beda), hash HARUS beda — ini
+        yang jadi jaring pengaman deteksi retrain tak disadari (D2)."""
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f1:
+            f1.write(b'model version A')
+            path1 = f1.name
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f2:
+            f2.write(b'model version B')
+            path2 = f2.name
+        try:
+            self.assertNotEqual(_sha256_file(path1), _sha256_file(path2))
+        finally:
+            os.unlink(path1)
+            os.unlink(path2)
+
+
+class TestRunCmd(unittest.TestCase):
+
+    def test_successful_command(self):
+        out = _run_cmd(['echo', 'hello'])
+        self.assertEqual(out, 'hello')
+
+    def test_nonexistent_command_returns_none(self):
+        out = _run_cmd(['perintah_yang_pasti_tidak_ada_xyz123'])
+        self.assertIsNone(out)
+
+    def test_empty_stdout_returns_none(self):
+        out = _run_cmd(['true'])
+        self.assertIsNone(out)
+
+
+class TestCheckDiskSpace(unittest.TestCase):
+    """[I] Peringatan disk penuh saat startup sesi eksperimen."""
+
+    def test_ok_when_above_threshold(self):
+        with tempfile.TemporaryDirectory() as d:
+            free_gb, ok = _check_disk_space(d, min_free_gb=0.0001)
+            self.assertTrue(ok)
+            self.assertGreater(free_gb, 0)
+
+    def test_not_ok_when_threshold_absurdly_high(self):
+        with tempfile.TemporaryDirectory() as d:
+            free_gb, ok = _check_disk_space(d, min_free_gb=1e9)   # 1 exabyte, mustahil lolos
+            self.assertFalse(ok)
+
+    def test_creates_directory_if_missing(self):
+        with tempfile.TemporaryDirectory() as d:
+            nested = os.path.join(d, 'belum', 'ada')
+            _check_disk_space(nested, min_free_gb=0.0001)
+            self.assertTrue(os.path.exists(nested))
+
+
 def main():
     print('test_semantic_exporter.py — unit tests semantic_map_exporter.py\n')
     loader = unittest.TestLoader()
@@ -274,6 +487,13 @@ def main():
         loader.loadTestsFromTestCase(TestLoadClassNames),
         loader.loadTestsFromTestCase(TestLabelConstruction),
         loader.loadTestsFromTestCase(TestExportYamlFormat),
+        loader.loadTestsFromTestCase(TestGroupPointsByDetection),
+        loader.loadTestsFromTestCase(TestSessionId),
+        loader.loadTestsFromTestCase(TestOpenSessionCsv),
+        loader.loadTestsFromTestCase(TestH4CrashRecovery),
+        loader.loadTestsFromTestCase(TestSha256File),
+        loader.loadTestsFromTestCase(TestRunCmd),
+        loader.loadTestsFromTestCase(TestCheckDiskSpace),
     ])
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
