@@ -1,0 +1,181 @@
+================================================================
+BASELINE SYSTEM STATUS — Jetson AGX Orin (kmp-orin)
+Tanggal        : 2026-08-20, ~11:10 WIB
+Kondisi        : IDLE (tidak ada node ROS/YOLO/RTAB-Map yang berjalan saat
+                 pengukuran ini — jadi ini baseline "sistem diam", BUKAN
+                 baseline "di bawah beban penuh". Suhu/power di bawah beban
+                 nyata (YOLO+RTAB-Map+lidar+kamera jalan bersamaan) akan
+                 lebih tinggi dari angka di sini.)
+================================================================
+
+1) POWER MODE (nvpmodel -q)
+----------------------------------------------------------------------
+NV Power Mode: MAXN (mode index 0 — performa maksimum, tanpa cap daya)
+
+>>> CATATAN PENTING: MAXN adalah mode yang sama dengan insiden crash
+    sebelumnya (MAXN + beberapa proses YOLO dimuat bersamaan menyebabkan
+    Jetson crash). Saat pengujian nanti dengan beban penuh, muat proses
+    GPU satu per satu, jangan simultan, dan pantau tegrastats live.
+
+2) THERMAL / THROTTLING (tegrastats, sample 10 detik, interval 1s)
+----------------------------------------------------------------------
+RAM       : 3429/30697 MB terpakai (~11%), stabil sepanjang 10 detik
+SWAP      : 0/15349 MB (tidak dipakai)
+CPU load  : ~0% di semua 12 core (idle), clock tetap di 2201 MHz
+GPU (GR3D_FREQ): 0% (idle, tidak ada workload GPU)
+
+Suhu (rentang selama 10 detik):
+  cpu   : 52.9 – 53.2 °C
+  gpu   : 49.2 – 49.3 °C
+  soc0  : 50.0 – 50.3 °C
+  soc1  : 50.3 – 50.5 °C
+  soc2  : 49.2 – 49.4 °C
+  tj (junction, titik terpanas) : 52.9 – 53.2 °C
+
+Status throttling: TIDAK ADA — jauh di bawah ambang thermal throttle Orin
+(~95-100°C tj). Wajar untuk kondisi idle.
+
+Power draw (idle):
+  VDD_GPU_SOC : ~4.8 W
+  VDD_CPU_CV  : ~1.2 W
+  VIN_SYS_5V0 : ~4.7 W
+
+3) STORAGE (df -h)
+----------------------------------------------------------------------
+Filesystem      Size  Used  Avail  Use%  Mounted on
+/dev/nvme0n1p1  915G  266G  603G   31%   /
+
+603 GB tersedia — aman untuk rosbag recording / model checkpoint sesi
+eksperimen mendatang.
+
+4) DISK I/O (vmstat 1 5, idle)
+----------------------------------------------------------------------
+ r  b  swpd  free      buff    cache    si so  bi   bo  in    cs   us sy id wa
+ 0  0  0     24235212  480248  4087788  0  0  130  71  387  456  3  1  95 0
+ 0  0  0     24235172  480248  4087808  0  0  0    8   1159 1160 0  0 100 0
+ 0  0  0     24235172  480248  4087808  0  0  0    0   1018 1062 0  0 100 0
+ 0  0  0     24235172  480248  4087808  0  0  0    0   985  1062 0  0 100 0
+ 0  0  0     24235172  480248  4087808  0  0  0    0   901  924  0  0 100 0
+
+I/O blocks-in/blocks-out (bi/bo) mendekati nol — tidak ada aktivitas disk
+signifikan, tidak ada I/O wait (wa=0). Baseline bersih, tidak ada proses
+lain yang membebani disk NVMe saat pengukuran.
+
+================================================================
+RINGKASAN
+================================================================
+Sistem dalam kondisi sehat & idle: power mode MAXN, suhu ~50-53°C (jauh
+dari throttle), storage 603GB bebas, disk I/O nihil. Baseline ini cocok
+dipakai sebagai titik pembanding "sebelum beban" — bandingkan dengan
+tegrastats saat pipeline live (YOLO+RTAB-Map+sensor) benar-benar jalan
+untuk mendeteksi thermal throttling atau resource contention selama
+pengujian real-hardware.
+
+================================================================
+5) INVESTIGASI PENYEBAB CRASH SEBELUMNYA (dicek ulang 2026-08-20)
+================================================================
+
+DUA insiden terpisah tercatat di riwayat proyek (bukan satu):
+
+--- Insiden #1 — 2026-07-09 ---
+kmp-orin mati mendadak di tengah sesi (SSH/ping "No route to host") saat
+full stack jalan bersamaan: RTAB-Map + AMCL + Nav2 + semantic nodes.
+User KONFIRMASI LANGSUNG saat kejadian: penyebabnya OVERHEAT.
+(Sumber: memory/project_state.md baris ~126, sesi fisik langsung — bukan
+hasil analisis log, tapi observasi user real-time.)
+
+--- Insiden #2 — 2026-07-14 ---
+kmp-orin unreachable total ("Destination Host Unreachable") tepat setelah
+2 model YOLO dimuat BERSAMAAN (person_detector.py + lab_robot_detector.py)
+di atas stack yang sudah jalan penuh (Nav2/AMCL/object_goal_nav/
+obstacle_stop_node/semantic_map_viz/velodyne/RealSense). Perlu power-cycle
+fisik manual. Hipotesis SAAT ITU: power mode MAXN (tanpa cap
+thermal/power) + beban gabungan → kemungkinan thermal shutdown. TIDAK
+PERNAH dikonfirmasi lewat log kernel (dmesg/journalctl -k) — memory lama
+eksplisit mencatat langkah itu belum sempat dilakukan.
+
+--- Cross-check hari ini (2026-08-20) ---
+`journalctl --list-boots` awalnya menyesatkan (nunjukin cuma 1 boot sejak
+Maret) — ternyata karena PERSISTENT JOURNAL TIDAK PERNAH DIAKTIFKAN
+(/var/log/journal/ tidak ada, cuma journal volatile di tmpfs yang
+kehapus tiap reboot). Cross-check ke `last reboot` (dari wtmp, sumber
+lebih tahan lama) kasih gambaran BERBEDA & lebih detail: ada PULUHAN
+reboot terkonsentrasi persis di rentang 9-14 Juli 2026 (beberapa cuma
+berjarak menit), pola yang konsisten dengan sesi debugging/crash-recovery
+intensif di periode itu — jauh lebih bergejolak dari sekadar "2 insiden
+diskret".
+
+KESIMPULAN JUJUR: Penyebab pasti (OOM vs thermal vs power-draw-spike)
+TIDAK BISA dikonfirmasi definitif sekarang — bukti log kernel dari
+periode itu SUDAH HILANG PERMANEN (journal volatile, tertimpa oleh
+puluhan reboot sesudahnya). Hipotesis paling didukung bukti yang ADA:
+thermal/resource-contention di bawah MAXN + beban GPU/CPU bersamaan —
+ini didukung konfirmasi user langsung untuk insiden #1, dan pola yang
+konsisten (selalu terjadi saat BANYAK proses berat jalan bersamaan,
+tidak pernah saat isolated) untuk insiden #2. TIDAK ADA bukti kuat untuk
+OOM (memory kmp-orin dicatat "FINE, 25GB nganggur" di insiden CPU-load
+terpisah tanggal yang sama — lihat project_state.md) — jadi thermal/power
+draw lebih mungkin dari OOM, tapi power-draw-spike sendiri belum pernah
+diukur langsung saat insiden terjadi (tidak ada tool logging daya yang
+jalan saat itu).
+
+GAP YANG DITEMUKAN & REKOMENDASI:
+- ~~Persistent journald logging TIDAK aktif~~ — **SUDAH DIPERBAIKI &
+  DIVERIFIKASI 2026-08-20, ~11:56 WIB.** Riwayat perbaikan:
+    1. `Storage=persistent` di-set di /etc/systemd/journald.conf +
+       `/var/log/journal` dibuat + `systemctl restart systemd-journald`
+       — TERNYATA TIDAK CUKUP, journald tetap nulis ke /run/log/journal
+       (volatile) walau config & permission sudah benar 100%.
+    2. `journalctl --flush` manual — TETAP TIDAK CUKUP juga.
+    3. **Akar masalah ketemu:** ada service systemd TERPISAH,
+       `systemd-journal-flush.service` ("Flush Journal to Persistent
+       Storage", ExecStart=`journalctl --flush`), yang seharusnya jalan
+       OTOMATIS tiap boot tapi ternyata TIDAK PERNAH ke-trigger ulang
+       sejak 2026-03-24 20:52 (4+ bulan), walau puluhan "reboot" tercatat
+       di wtmp sejak itu — penyebab kenapa service ini gak auto-retrigger
+       BELUM diketahui (di luar cakupan investigasi ini), tapi fix-nya
+       simpel: trigger MANUAL — `sudo systemctl restart
+       systemd-journal-flush.service`. Begitu di-restart eksplisit,
+       migrasi ke /var/log/journal langsung SUKSES (33MB data ter-flush,
+       termasuk histori lama yang ikut kebawa).
+  **VERIFIKASI:** `journalctl --header | grep 'File path'` sekarang
+  menunjuk ke `/var/log/journal/<machine-id>/...` (bukan lagi
+  `/run/log/journal/`), dan `ls /var/log/journal/<machine-id>/` berisi
+  file `.journal` nyata (system.journal 8MB, user-1000.journal 8MB,
+  archived 16MB).
+  **CATATAN JUJUR — BELUM 100% terverifikasi:** `journalctl --list-boots`
+  MASIH menunjukkan cuma 1 boot ID (`bee94f1b901a41239f70ea76cb8bbc28`)
+  sejak Maret meski wtmp mencatat puluhan reboot — mengindikasikan
+  "reboot" yang tercatat di wtmp mungkin BUKAN reboot kernel penuh (boot
+  ID kernel semestinya berubah tiap reboot sungguhan). Jadi walau
+  mekanisme flush SEKARANG bekerja kalau dipicu manual, apakah dia akan
+  ke-trigger OTOMATIS dengan benar saat reboot KERNEL yang sungguhan
+  (bukan whatever yang tercatat di wtmp selama ini) — BELUM bisa
+  dipastikan tanpa observasi reboot nyata berikutnya. **Action item:**
+  begitu ada reboot berikutnya (terjadwal atau akibat crash), cek
+  `journalctl --list-boots` — kalau muncul entry BARU (boot ID baru,
+  terpisah dari yang lama), berarti mekanisme auto-trigger-nya sehat.
+  Kalau tetap nyangkut di 1 boot ID lama, berarti perlu trigger manual
+  lagi setiap habis reboot (`sudo systemctl restart
+  systemd-journal-flush.service`) sebelum baca log post-mortem.
+- Power mode default PABRIK Jetson ini sebenarnya MODE_30W (ID=2), BUKAN
+  MAXN — MAXN dipilih manual di suatu titik. Mode tersedia:
+    ID=0 MAXN      (performa maks, tanpa cap — mode saat ini)
+    ID=1 MODE_15W
+    ID=2 MODE_30W  (default pabrik)
+    ID=3 MODE_50W
+  Kalau mau kurangi risiko thermal saat uji coba, MODE_50W (ID=3) adalah
+  kandidat paling masuk akal (masih named/rated, ada cap, tapi tetap
+  cukup headroom utk YOLO+RTAB-Map dibanding 30W) — BELUM diuji apakah
+  cukup untuk beban penuh, hanya rekomendasi awal.
+
+REKOMENDASI UJI BERTAHAP (didukung bukti di atas): karena SEMUA insiden
+tercatat terjadi saat BANYAK proses berat (multi-YOLO / full Nav2+AMCL+
+semantic bersamaan) jalan SEKALIGUS, dan TIDAK PERNAH saat isolated —
+uji bertahap (YOLO sendiri dulu → baru tambah RTAB-Map → baru tambah
+Nav2/AMCL) adalah pendekatan yang tepat, bukan cuma kehati-hatian
+berlebih. Ini juga PERSIS rekomendasi independen dari sesi 2026-07-13
+(lihat memory/dynamic_obstacle_avoidance.md, poin 3 "Langkah pertama
+kalau lanjut sesi ini") — dua sesi berbeda sampai pada kesimpulan yang
+sama dari sudut pandang berbeda (isolasi root cause vs mitigasi risiko
+crash), memperkuat validitas pendekatan ini.

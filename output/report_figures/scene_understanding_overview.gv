@@ -1,0 +1,48 @@
+digraph overview {
+    rankdir=TB;
+    bgcolor="white";
+    fontname="Helvetica";
+    labelloc="t";
+    fontsize=16;
+    label="Scene understanding - big picture (2 independent pipelines)";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style=filled, color="black", penwidth=1];
+    edge [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    subgraph cluster_live {
+        label="A. LIVE, per-frame - runs continuously on the robot";
+        fontname="Helvetica"; fontsize=11; style=dashed; color="gray40";
+
+        cam_yolo [label="camera + YOLO detections", fillcolor="#e3edf7"];
+        segformer [label="segformer_node.py\n(diagram: segformer_node_pipeline.png)", fillcolor="#fbe8d3"];
+        scene_label [label="/semantic/segformer/scene_label\n(live diagnostic - NOT currently\nconsumed by any downstream node)", fillcolor="#eeeeee", style="filled,dashed"];
+        mask_filtered [label="/semantic/segformer/mask_filtered\n(planned for Nav2 semantic costmap -\nNOT wired to any costmap layer yet)", fillcolor="#eeeeee", style="filled,dashed"];
+
+        cam_yolo -> segformer;
+        segformer -> scene_label;
+        segformer -> mask_filtered;
+    }
+
+    subgraph cluster_offline {
+        label="B. OFFLINE, run once after mapping - produces the scene-zone grid";
+        fontname="Helvetica"; fontsize=11; style=dashed; color="gray40";
+
+        map_sem [label="lab_map.pgm/.yaml  +  semantic_map.yaml\n(static map + YOLO object positions, Phase B)", fillcolor="#e3edf7"];
+        exporter [label="scene_zone_exporter.py\nrun_final_geometry_yolo()\n(diagram: scene_zone_exporter_pipeline.png)", fillcolor="#fbe8d3"];
+        zone_grid [label="scene_zone_final_v9_final.png/.yaml\n7-category grid", fillcolor="#e2f0e2"];
+
+        map_sem -> exporter -> zone_grid;
+
+        keepout_script [label="scene_zone_to_keepout_mask.py", fillcolor="#f2f2f2"];
+        keepout_mask [label="keepout_mask.pgm/.yaml", fillcolor="#f2f2f2"];
+        keepout_node [label="keepout_mask_server +\ncostmap_filter_info_server\n(nav2_husky.launch.py)", fillcolor="#f2f2f2"];
+        keepout_filter [label="nav2_costmap_2d::KeepoutFilter\nACTIVE in costmap plugins list", fillcolor="#d9ecd9"];
+
+        zone_grid -> keepout_script -> keepout_mask -> keepout_node -> keepout_filter;
+
+        room_lookup [label="room_zone_lookup.py\nRoomZoneMap (connected-component\nroom IDs, walkable = corridor/\nstaircase/workshop only)", fillcolor="#f2f2f2"];
+        object_goal [label="object_goal_nav.py\ngoal validation: target must be\nin SAME room as the object", fillcolor="#e2f0e2"];
+
+        zone_grid -> room_lookup -> object_goal;
+    }
+}

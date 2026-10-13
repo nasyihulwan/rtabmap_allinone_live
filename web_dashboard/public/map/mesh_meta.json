@@ -1,0 +1,16 @@
+{
+  "demo": true,
+  "note": "Mesh 3D dari sementara/rtabmap.db (voxel 0.05m, min_cluster=-1).",
+  "vertexCount": 138555,
+  "faceCount": 187208,
+  "voxelSize": 0.05,
+  "bounds": {
+    "minX": -17.824,
+    "maxX": 21.568,
+    "minY": -3.8491,
+    "maxY": 17.691,
+    "minZ": -2.9001,
+    "maxZ": 5.1853
+  },
+  "format": "uint32 vertexCount, uint32 faceCount, then vertexCount*float32[3] xyz, then vertexCount*uint8[3] rgb, then faceCount*uint32[3] indices"
+}

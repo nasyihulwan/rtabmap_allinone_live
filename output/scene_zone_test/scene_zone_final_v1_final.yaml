@@ -1,0 +1,16 @@
+height: 472
+image: scene_zone_final_v1_final.png
+label_map:
+  0: unknown
+  1: corridor
+  2: open_area
+  3: doorway
+  4: staircase
+  5: wall
+  6: workshop
+origin:
+- -18.0
+- -4.06
+- 0
+resolution: 0.05
+width: 791

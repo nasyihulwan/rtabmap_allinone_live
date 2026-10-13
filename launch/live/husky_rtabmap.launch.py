@@ -1,0 +1,327 @@
+import os
+"""
+husky_rtabmap.launch.py
+RTABMap live mode, RTABMap-only — TIDAK menjalankan YOLO/SegFormer.
+
+Beda dari rtabmap_live.launch.py: subscribe_scan_cloud dan subscribe_depth/rgb
+tidak lagi hardcode True — dikontrol lewat argumen use_lidar / use_camera,
+supaya bisa jalan walau salah satu sensor sedang tidak tersedia
+(mis. Velodyne sedang dipakai project lain).
+
+Kombinasi yang didukung:
+  use_lidar=true,  use_camera=true   -> RGBD + lidar (Reg/Strategy=2, Vis+ICP)
+  use_lidar=false, use_camera=true   -> kamera saja  (Reg/Strategy=0, Visual only)
+  use_lidar=true,  use_camera=false  -> lidar saja   (Reg/Strategy=1, ICP only)
+  use_lidar=false, use_camera=false  -> tidak valid, rtabmap TIDAK dilaunch
+                                         (tanpa sensor apa pun, tidak ada data untuk SLAM)
+
+PRASYARAT (sebelum jalankan launch ini):
+  - static_tf_live.launch.py sudah jalan (base_link -> camera_link / velodyne)
+  - Kalau use_camera=true : RealSense D455 driver aktif
+      ros2 launch realsense2_camera rs_launch.py \\
+          enable_color:=true enable_depth:=true align_depth.enable:=true
+  - Kalau use_lidar=true  : Velodyne VLP-32C driver aktif (publish /velodyne_points)
+  - Husky platform aktif (publish /a200_1060/platform/odom/filtered + tf)
+"""
+
+from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument, TimerAction, LogInfo, OpaqueFunction
+)
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+ROBOT_BASE_FRAME = 'a200_1060/base_link'
+ODOM_FRAME       = 'odom'
+MAP_FRAME        = 'map'
+
+
+def generate_launch_description():
+
+    rviz         = LaunchConfiguration('rviz')
+    db_path      = LaunchConfiguration('db_path')
+    use_ekf      = LaunchConfiguration('use_ekf')
+    odom_topic   = LaunchConfiguration('odom_topic')
+    localization = LaunchConfiguration('localization')
+
+    # ── Argumen ────────────────────────────────────────────────────
+    declare_rviz       = DeclareLaunchArgument('rviz', default_value='true')
+    declare_rtabmap_viz = DeclareLaunchArgument(
+        'use_rtabmap_viz', default_value='false',
+        description='true=launch rtabmap_viz (berat, nonaktifkan saat nav)')
+    declare_db_path    = DeclareLaunchArgument(
+        'db_path', default_value=os.path.expanduser('~/.ros/rtabmap.db'))
+    declare_use_ekf    = DeclareLaunchArgument(
+        'use_ekf', default_value='false',
+        description='false=pakai /a200_1060/platform/odom/filtered langsung | true=EKF custom')
+    declare_odom_topic = DeclareLaunchArgument(
+        'odom_topic', default_value='/a200_1060/platform/odom/filtered',
+        description='Topic odom ke RTAB-Map')
+    declare_localization = DeclareLaunchArgument(
+        'localization', default_value='false',
+        description='true=localization mode | false=mapping mode')
+    declare_use_amcl = DeclareLaunchArgument(
+        'use_amcl', default_value='false',
+        description='true=AMCL handle map->odom TF | false=RTABMap handle')
+    declare_use_lidar = DeclareLaunchArgument(
+        'use_lidar', default_value='true',
+        description='true=subscribe /velodyne_points (scan_cloud) | false=lidar dimatikan')
+    declare_use_camera = DeclareLaunchArgument(
+        'use_camera', default_value='true',
+        description='true=subscribe RGB+depth D455 | false=kamera dimatikan')
+
+    # ══════════════════════════════════════════════════════════════
+    # T+0s — RELAY TF + ODOM (bridge namespace a200_1060)
+    # ══════════════════════════════════════════════════════════════
+    relay_tf = Node(
+        package='topic_tools', executable='relay', name='relay_tf',
+        arguments=['/a200_1060/tf', '/tf'],
+        parameters=[{'use_sim_time': False}], output='log')
+
+    relay_tf_static = Node(
+        package='topic_tools', executable='relay', name='relay_tf_static',
+        arguments=['/a200_1060/tf_static', '/tf_static'],
+        parameters=[{'use_sim_time': False}], output='screen')
+
+    relay_odom = Node(
+        package='topic_tools', executable='relay', name='relay_odom',
+        arguments=['/a200_1060/platform/odom', '/odom'],
+        parameters=[{'use_sim_time': False}], output='screen')
+
+    relay_imu = Node(
+        package='topic_tools', executable='relay', name='relay_imu',
+        arguments=['/a200_1060/sensors/imu_0/data', '/imu/data'],
+        parameters=[{'use_sim_time': False}],
+        condition=IfCondition(use_ekf),
+        output='screen')
+
+    # Camera/velodyne/base_link static TF: lihat static_tf_live.launch.py
+    # (run.sh selalu menjalankannya bareng launch file ini).
+
+    # ══════════════════════════════════════════════════════════════
+    # T+1s — EKF NODE (opsional)
+    # ══════════════════════════════════════════════════════════════
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        condition=IfCondition(use_ekf),
+        parameters=[{
+            'use_sim_time':     False,
+            'frequency':        50.0,
+            'sensor_timeout':   0.1,
+            'two_d_mode':       True,
+            'publish_tf':       False,
+            'map_frame':        MAP_FRAME,
+            'odom_frame':       ODOM_FRAME,
+            'base_link_frame':  ROBOT_BASE_FRAME,
+            'world_frame':      ODOM_FRAME,
+            'odom0': '/odom',
+            'odom0_config': [
+                True,  True,  False,
+                False, False, True,
+                True,  True,  False,
+                False, False, True,
+                False, False, False,
+            ],
+            'odom0_differential': False,
+            'odom0_relative':     False,
+            'odom0_queue_size':   10,
+            'imu0': '/imu/data',
+            'imu0_config': [
+                False, False, False,
+                False, False, True,
+                False, False, False,
+                True,  True,  True,
+                True,  True,  False,
+            ],
+            'imu0_differential':  False,
+            'imu0_relative':      False,
+            'imu0_queue_size':    50,
+            'imu0_remove_gravitational_acceleration': True,
+        }])
+
+    # ══════════════════════════════════════════════════════════════
+    # T+4s — RTAB-MAP (via OpaqueFunction)
+    # ══════════════════════════════════════════════════════════════
+    def launch_rtabmap(context, *args, **kwargs):
+        loc             = context.launch_configurations.get('localization', 'false')
+        db              = context.launch_configurations.get('db_path', os.path.expanduser('~/.ros/rtabmap.db'))
+        odom            = context.launch_configurations.get('odom_topic',
+                              '/a200_1060/platform/odom/filtered')
+        rviz_flag       = context.launch_configurations.get('rviz', 'true')
+        use_rtabmap_viz = context.launch_configurations.get('use_rtabmap_viz', 'false')
+        use_amcl        = context.launch_configurations.get('use_amcl', 'false')
+        use_lidar       = context.launch_configurations.get('use_lidar', 'true') == 'true'
+        use_camera      = context.launch_configurations.get('use_camera', 'true') == 'true'
+        incremental     = 'false' if loc == 'true' else 'true'
+        publish_tf      = False if use_amcl == 'true' else True
+
+        if not use_lidar and not use_camera:
+            return [LogInfo(msg='>>> [ERROR] use_lidar=false DAN use_camera=false — '
+                                 'tidak ada sensor untuk SLAM. RTABMap TIDAK dilaunch.')]
+
+        # Registrasi & occupancy grid menyesuaikan sensor yang aktif:
+        #   Reg/Strategy   0=Visual, 1=ICP, 2=Visual+ICP
+        #   Grid/Sensor    0=Laser scan, 1=Depth image, 2=Scan+Depth
+        if use_lidar and use_camera:
+            reg_strategy, grid_sensor, sensor_label = '2', '2', 'LIDAR+CAMERA'
+        elif use_lidar:
+            reg_strategy, grid_sensor, sensor_label = '1', '0', 'LIDAR ONLY'
+        else:
+            reg_strategy, grid_sensor, sensor_label = '0', '1', 'CAMERA ONLY'
+
+        rtabmap_node = Node(
+            package='rtabmap_slam', executable='rtabmap', name='rtabmap',
+            output='screen',
+            parameters=[{
+                'use_sim_time':         False,   # ← LIVE MODE
+                'database_path':        db,
+                'frame_id':             ROBOT_BASE_FRAME,
+                'map_frame_id':         MAP_FRAME,
+                'odom_frame_id':        ODOM_FRAME,
+                'subscribe_depth':      use_camera,
+                'subscribe_rgb':        use_camera,
+                'subscribe_scan_cloud': use_lidar,
+                'subscribe_odom_info':  False,
+                'approx_sync':              True,
+                'approx_sync_max_interval': 6.0,
+                'sync_queue_size':          50,
+                'topic_queue_size':         50,
+                'publish_tf':               publish_tf,
+
+                'Mem/STMSize':             '30',
+                'Mem/RehearsalSimilarity': '0.45',
+                'Mem/NotLinkedNodesKept':  'false',
+                'Mem/IncrementalMemory':   incremental,
+                'initial_pose':            '0 0 0 0 0 0',
+                'Mem/InitWMWithAllNodes':  'false',
+
+                'Kp/DetectorStrategy': '6',
+                'Vis/FeatureType':     '6',
+                'Kp/MaxFeatures':      '600',
+                'Vis/MinInliers':      '20',
+                'Vis/InlierDistance':  '0.1',
+                'Vis/EstimationType':  '1',
+                'Vis/MaxDepth':        '10.0',
+
+                'RGBD/OptimizeFromGraphEnd': 'false',
+                'RGBD/OptimizeMaxError':     '3.0',
+                'Optimizer/Strategy':        '1',
+                'Optimizer/Iterations':      '20',
+                'Optimizer/Robust':          'true',
+
+                'RGBD/ProximityBySpace':          'true',
+                'RGBD/ProximityMaxGraphDepth':    '0',
+                'RGBD/ProximityPathMaxNeighbors': '5',
+                'RGBD/NeighborLinkRefining':      'true',
+                'RGBD/AngularUpdate':             '0.01',
+                'RGBD/LinearUpdate':              '0.01',
+
+                'RGBD/CreateOccupancyGrid': 'true',
+                'Grid/Sensor':              grid_sensor,
+                'Grid/3D':                  'false',
+                'Grid/MaxObstacleHeight':   '2.0',
+                'Grid/MinGroundHeight':     '-0.1',
+                'Grid/MaxGroundHeight':     '0.1',
+                'Grid/RayTracing':          'true',
+                'Grid/FootprintLength':     '1.0',
+                'Grid/FootprintWidth':      '0.7',
+                'Grid/FootprintHeight':     '0.5',
+                'Grid/ClusterRadius':       '0.1',
+                'Grid/GroundIsObstacle':    'false',
+                'Grid/NormalsSegmentation': 'true',
+
+                'Reg/Strategy':                  reg_strategy,
+                'Reg/Force3DoF':                 'true',
+                'Icp/MaxCorrespondenceDistance': '0.15',
+                'Icp/PointToPlane':              'true',
+                'Icp/Iterations':                '30',
+                'Icp/VoxelSize':                 '0.1',
+                'Icp/Epsilon':                   '0.001',
+                'Icp/MaxTranslation':            '1.5',
+                'Icp/MaxRotation':               '1',
+                'Icp/OutlierRatio':              '0.1',
+
+                'Rtabmap/DetectionRate': '1.0',
+                'Rtabmap/TimeThr':       '0',
+                'Rtabmap/MemoryThr':     '0',
+                'wait_for_transform':    0.5,
+            }],
+            remappings=[
+                # ← Topic RealSense live (bukan dari decompressor)
+                ('rgb/image',       '/camera/camera/color/image_raw'),
+                ('rgb/camera_info', '/camera/camera/color/camera_info'),
+                ('depth/image',     '/camera/camera/depth/image_rect_raw'),
+                ('scan_cloud',      '/velodyne_points'),
+                ('odom',            odom),
+                ('map',             '/map'),
+                ('cloud_map',       '/rtabmap/cloud_map'),
+                ('grid_map',        '/rtabmap/grid_map'),
+            ])
+
+        rtabmap_viz_node = Node(
+            package='rtabmap_viz', executable='rtabmap_viz', name='rtabmap_viz',
+            output='screen',
+            parameters=[{
+                'use_sim_time':             False,
+                'subscribe_depth':          use_camera,
+                'subscribe_rgb':            use_camera,
+                'subscribe_scan_cloud':     False,
+                'subscribe_odom_info':      False,
+                'approx_sync':              True,
+                'approx_sync_max_interval': 6.0,
+                'sync_queue_size':          50,
+                'topic_queue_size':         50,
+                'frame_id':                 ROBOT_BASE_FRAME,
+                'odom_frame_id':            ODOM_FRAME,
+            }],
+            remappings=[
+                ('rgb/image',       '/camera/camera/color/image_raw'),
+                ('rgb/camera_info', '/camera/camera/color/camera_info'),
+                ('depth/image',     '/camera/camera/depth/image_rect_raw'),
+                ('odom',            odom),
+            ])
+
+        rviz_node = Node(
+            package='rviz2', executable='rviz2', name='rviz2',
+            parameters=[{'use_sim_time': False}],
+            condition=IfCondition(rviz_flag),
+            output='screen')
+
+        mode_str = 'LOCALIZATION' if loc == 'true' else 'MAPPING'
+        amcl_str = ' [AMCL-TF]' if use_amcl == 'true' else ''
+        nodes = [
+            LogInfo(msg=f'>>> [T+4s] RTAB-Map {mode_str} mode{amcl_str} — sensor: {sensor_label} '
+                        f'(Reg/Strategy={reg_strategy}, Grid/Sensor={grid_sensor}, '
+                        f'Mem/IncrementalMemory={incremental}, publish_tf={publish_tf})...'),
+            rtabmap_node,
+        ]
+        if use_rtabmap_viz == 'true':
+            nodes.append(rtabmap_viz_node)
+        nodes.append(TimerAction(period=2.0, actions=[
+            LogInfo(msg='>>> [T+6s] RViz2...'),
+            rviz_node,
+        ]))
+        return nodes
+
+    return LaunchDescription([
+        declare_rviz, declare_rtabmap_viz, declare_db_path,
+        declare_use_ekf, declare_odom_topic,
+        declare_localization, declare_use_amcl,
+        declare_use_lidar, declare_use_camera,
+
+        LogInfo(msg='>>> [T+0s] Relay TF (live mode, no rosbag)...'),
+        relay_tf, relay_tf_static, relay_odom, relay_imu,
+
+        TimerAction(period=1.0, actions=[
+            LogInfo(msg='>>> [T+1s] EKF filter (jika use_ekf=true)...'),
+            ekf_node,
+        ]),
+
+        TimerAction(period=4.0, actions=[
+            OpaqueFunction(function=launch_rtabmap),
+        ]),
+    ])

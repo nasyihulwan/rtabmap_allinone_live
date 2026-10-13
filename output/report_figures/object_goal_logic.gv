@@ -1,0 +1,36 @@
+digraph object_goal_logic {
+    rankdir=TB;
+    bgcolor="white";
+    fontname="Helvetica";
+    labelloc="t";
+    fontsize=16;
+    label="Object-goal navigation logic - from semantic object to a safe Nav2 goal";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style=filled, color="black", penwidth=1];
+    edge [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    obj [label="object selected (e.g. 'shelf')\nposition from semantic_map.yaml", fillcolor="#e3edf7"];
+    note_obj [label="this position sits EXACTLY on the object\n(object = physical obstacle), NOT open floor", shape=note, fillcolor="#fdf6d8", fontsize=9];
+
+    snap [label="snap to nearest walkable cell\n(nearestWalkable, grid from lab_map.pgm\nlidar occupancy - 3x downsampled)", fillcolor="#fbe8d3"];
+    note_snap [label="web dashboard: occupancy check ONLY\n(does not know about scene_zone/open_area)", shape=note, fillcolor="#fdf6d8", fontsize=9];
+
+    room_check [label="(production/object_goal_nav.py only,\nNOT in the web dashboard yet)\nsame_room() - two conditions:\n1) candidate must itself be in a classified\n   room (not unknown/open_area/wall/doorway)\n2) that room must match the object's room\n(room_zone_lookup.py)", fillcolor="#eeeeee", style="filled,dashed"];
+
+    goal [label="absolute goal, frame 'map'\nNavigateToPose action", fillcolor="#f2f2f2"];
+
+    planner [label="planner_server (SmacPlanner2D)\n+ KeepoutFilter active\n→ blocks open_area/wall even if\noccupancy alone says 'free'", fillcolor="#fbe8d3"];
+
+    result [label="/plan (real path) + feedback\ndistance_remaining → robot moves", fillcolor="#e2f0e2"];
+
+    obj -> note_obj [style=invis];
+    obj -> snap;
+    snap -> note_snap [style=invis];
+    snap -> room_check [style=dashed];
+    snap -> goal;
+    room_check -> goal [style=dashed];
+    goal -> planner -> result;
+
+    { rank=same; obj; note_obj; }
+    { rank=same; snap; note_snap; }
+}

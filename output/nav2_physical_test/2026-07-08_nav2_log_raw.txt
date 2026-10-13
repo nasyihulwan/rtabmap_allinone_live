@@ -1,0 +1,33 @@
+=== nav2.log (kmp-orin, server-side, ~/.ros/run_logs/nav2.log) ===
+=== Goal: NavigateToPose, frame_id=a200_1060/base_link, x=0.5 y=0.0 (50cm maju) ===
+=== 2026-07-08 13:29 WIB ===
+
+[bt_navigator-5] [INFO] [1783492544.261050334] [bt_navigator]: Begin navigating from current location (0.24, 1.21) to (0.50, 0.00)
+[controller_server-1] [INFO] [1783492544.474801083] [controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1783492544.474939580] [controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+[controller_server-1] [INFO] [1783492545.679915651] [controller_server]: Reached the goal!
+[controller_server-1] [INFO] [1783492545.765615234] [controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1783492546.774878861] [controller_server]: Reached the goal!
+[controller_server-1] [INFO] [1783492547.547801819] [controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1783492548.552543234] [controller_server]: Reached the goal!
+[bt_navigator-5] [WARN] [1783492550.792884492] [BehaviorTreeEngine]: Behavior Tree tick rate 10.00 was exceeded!
+[bt_navigator-5] [INFO] [1783492550.793338128] [bt_navigator]: Goal succeeded
+
+=== Action client feedback (ros2 action send_goal --feedback, anymal-bunny-orin side) ===
+
+current_pose (BEFORE, first feedback sample):
+  frame_id: map
+  position: x=-0.274, y=1.416
+
+current_pose (AFTER, final feedback sample):
+  frame_id: map
+  position: x=0.2967381407671255, y=1.8249746541352136
+  orientation: z=0.6706313410292793, w=0.7417908090757599
+  stamp: sec=1783492550, nanosec=419900476
+
+navigation_time (final): sec=6, nanosec=531550509
+number_of_recoveries: 0
+distance_remaining (final): 0.0
+
+Result: {}
+Goal finished with status: SUCCEEDED

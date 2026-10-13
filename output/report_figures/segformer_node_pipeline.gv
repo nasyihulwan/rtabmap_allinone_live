@@ -1,0 +1,53 @@
+digraph segformer_node {
+    rankdir=LR;
+    bgcolor="white";
+    fontname="Helvetica";
+    labelloc="t";
+    fontsize=16;
+    label="segformer_node.py - per-frame pipeline";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style=filled, color="black", penwidth=1];
+    edge [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    subgraph cluster_in {
+        label="subscribe";
+        fontname="Helvetica"; fontsize=10; style=dashed; color="gray50";
+        img_topic  [label="/camera/camera/color/image_raw\nsensor_msgs/Image", fillcolor="#e3edf7"];
+        yolo_topic [label="/yolo/detection_classes\nstd_msgs/String (JSON)", fillcolor="#e3edf7"];
+    }
+
+    cvbridge [label="cv_bridge\nImage → BGR ndarray", fillcolor="#f2f2f2"];
+
+    subgraph cluster_model {
+        label="SegFormer-B0  (nvidia/segformer-b0-finetuned-ade-512-512)";
+        fontname="Helvetica"; fontsize=10; style=dashed; color="gray50";
+        resize   [label="resize 512×512", fillcolor="#fbe8d3"];
+        infer    [label="forward pass (CUDA)", fillcolor="#fbe8d3"];
+        upsample [label="bilinear upsample\n+ argmax", fillcolor="#fbe8d3"];
+        resize -> infer -> upsample;
+    }
+
+    mask_full [label="mask_full\nH×W uint8, 150 ADE20K classes", fillcolor="#f2f2f2"];
+
+    filter   [label="_build_filtered_mask()\nkeep: wall, floor, ceiling, corridor,\nstairs, door, window, railing", fillcolor="#f2f2f2"];
+    classify [label="classify_scene()\nrule-based: floor/wall/stair/door\npixel ratio + YOLO object overlap", fillcolor="#f2f2f2"];
+    colorize [label="_colorize()\nADE20K colormap lookup", fillcolor="#f2f2f2"];
+
+    subgraph cluster_out {
+        label="publish";
+        fontname="Helvetica"; fontsize=10; style=dashed; color="gray50";
+        out_filtered [label="/semantic/segformer/mask_filtered\nmono8 → Nav2 semantic costmap", fillcolor="#e2f0e2"];
+        out_full     [label="/semantic/segformer/mask_full\nmono8", fillcolor="#e2f0e2"];
+        out_label    [label="/semantic/segformer/scene_label\nString: staircase | lab_workshop |\ndoorway | corridor | unknown", fillcolor="#e2f0e2"];
+        out_colored  [label="/semantic/segformer/image_colored\nrgb8 (visualization)", fillcolor="#e2f0e2"];
+    }
+
+    img_topic -> cvbridge -> resize;
+    upsample -> mask_full;
+    yolo_topic -> classify [style=dashed, label="  latest detections"];
+
+    mask_full -> filter -> out_filtered;
+    mask_full -> classify -> out_label;
+    mask_full -> colorize -> out_colored;
+    mask_full -> out_full;
+}

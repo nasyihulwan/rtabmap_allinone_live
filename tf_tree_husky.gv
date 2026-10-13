@@ -1,0 +1,54 @@
+digraph TF_Husky {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor="#eef3fb", fontname="Helvetica", fontsize=12];
+    edge [fontname="Helvetica", fontsize=9, color="#555555"];
+
+    map [fillcolor="#ffe0b3"];
+    odom [fillcolor="#ffe0b3"];
+    base_link [fillcolor="#c8e6c9"];
+
+    map -> odom [label="AMCL  ~20Hz"];
+    odom -> base_link [label="odometry  ~14-37Hz"];
+
+    base_link -> base_footprint;
+    base_link -> front_left_wheel;
+    base_link -> front_right_wheel;
+    base_link -> rear_left_wheel;
+    base_link -> rear_right_wheel;
+    base_link -> inertial_link;
+
+    base_link -> imu_0_base_link;
+    imu_0_base_link -> imu_0_link;
+
+    base_link -> front_bumper_mount;
+    front_bumper_mount -> front_bumper_base_link;
+    front_bumper_base_link -> front_bumper_link;
+
+    base_link -> rear_bumper_mount;
+    rear_bumper_mount -> rear_bumper_base_link;
+    rear_bumper_base_link -> rear_bumper_link;
+
+    base_link -> top_chassis_link;
+
+    base_link -> default_mount;
+    default_mount -> top_plate_adjust_link;
+    top_plate_adjust_link -> top_plate_link;
+    top_plate_link -> "top_plate_mount_d1";
+    "top_plate_mount_d1" -> bracket_0_link;
+    bracket_0_link -> bracket_0_mount;
+    bracket_0_mount -> camera_0_bottom_screw_frame;
+    camera_0_bottom_screw_frame -> camera_0_link [label="RealSense (mount baru)"];
+    bracket_0_mount -> lidar3d_0_link;
+    lidar3d_0_link -> lidar3d_0_laser [label="Velodyne (mount baru)"];
+
+    "top_plate_mount_lainnya" [label="+ ~30 top_plate_mount_*\n(lubang baut plat atas,\ntidak dipakai)", shape=note, fillcolor="#f5f5f5", fontcolor="#888888"];
+    top_plate_link -> "top_plate_mount_lainnya" [style=dashed, color="#aaaaaa"];
+
+    base_link -> "a200_1060/base_link" [label="static (relay tf_static)"];
+    "a200_1060/base_link" -> camera_link [label="RealSense (jalur aktif)", fontcolor="#1b5e20", color="#1b5e20"];
+    camera_link -> camera_depth_frame;
+    camera_depth_frame -> camera_depth_optical_frame;
+    camera_link -> camera_color_frame;
+    camera_color_frame -> camera_color_optical_frame;
+    "a200_1060/base_link" -> velodyne [label="Velodyne (jalur aktif)", fontcolor="#1b5e20", color="#1b5e20"];
+}

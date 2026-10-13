@@ -1,0 +1,54 @@
+digraph scene_zone_exporter {
+    rankdir=LR;
+    bgcolor="white";
+    fontname="Helvetica";
+    labelloc="t";
+    fontsize=16;
+    label="scene_zone_exporter.py - run_final_geometry_yolo() (--mode geometry-final)";
+
+    node [fontname="Helvetica", fontsize=11, shape=box, style=filled, color="black", penwidth=1];
+    edge [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    subgraph cluster_in {
+        label="inputs (files on disk)";
+        fontname="Helvetica"; fontsize=10; style=dashed; color="gray50";
+        map_in  [label="lab_map.pgm / .yaml\nstatic occupancy grid (RTABMap+lidar)", fillcolor="#e3edf7"];
+        sem_in  [label="semantic_map.yaml\nYOLO object positions (Phase B, pre-existing)", fillcolor="#e3edf7"];
+    }
+
+    geom [label="_read_lab_map_geometry()\n→ occupied / unknown / free masks", fillcolor="#f2f2f2"];
+
+    erosion_r [label="_auto_erosion_radius_px()\nauto from p60 corridor width\nin THIS map", fillcolor="#f2f2f2"];
+
+    segment [label="_segment_rooms_by_erosion()\nmorphological erosion →\nroom_id_grid (rooms split from corridor)", fillcolor="#fbe8d3"];
+
+    merge [label="_merge_fragments_and_find_doorways()\nmerge small fragments +\ngeometric doorway = narrow link\nbetween 2 different rooms", fillcolor="#fbe8d3"];
+
+    backbone [label="backbone_id = room_id with\nmost free cells", fillcolor="#fbe8d3"];
+
+    base [label="base labels\nbackbone → corridor(1)\nother rooms → open_area(2)", fillcolor="#f2f2f2"];
+
+    stairs_tag [label="for each 'stairs' object: nearest room →\nstaircase(4), UNLESS that room is the\nbackbone(corridor) or has no room(0)", fillcolor="#f2f2f2"];
+    lab_tag    [label="for each shelf/table/cabinet/laptop/tv:\nnearest room → workshop(6), same exclusion\n+ never overwrites cells already staircase(4)", fillcolor="#f2f2f2"];
+    door_tag   [label="doorway(3) = geometric doorway\nOR merged YOLO 'door' detections\n(small disk marker per door)", fillcolor="#f2f2f2"];
+
+    combine [label="occupied → wall(5)\nnever-observed → unknown(0)", fillcolor="#f2f2f2"];
+
+    subgraph cluster_out {
+        label="output";
+        fontname="Helvetica"; fontsize=10; style=dashed; color="gray50";
+        out_final [label="scene_zone_final_v9_final.png/.yaml\n7 labels: unknown, corridor, open_area,\ndoorway, staircase, wall, workshop", fillcolor="#e2f0e2"];
+    }
+
+    map_in -> geom -> erosion_r -> segment -> merge -> backbone -> base;
+    merge -> door_tag [label="  geo_doorway"];
+    sem_in -> stairs_tag;
+    sem_in -> lab_tag;
+    sem_in -> door_tag [label="  YOLO 'door'"];
+
+    base -> combine;
+    stairs_tag -> combine;
+    lab_tag -> combine;
+    door_tag -> combine;
+    combine -> out_final;
+}

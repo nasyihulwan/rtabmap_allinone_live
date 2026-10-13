@@ -1,0 +1,740 @@
+[
+  {
+    "id": "cabinet_238",
+    "name": "cabinet",
+    "cell_count": 121,
+    "class_id": 0,
+    "x": 4.0429,
+    "y": 0.8889,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_249",
+    "name": "cabinet",
+    "cell_count": 15062,
+    "class_id": 0,
+    "x": -0.2228,
+    "y": -2.9952,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_29",
+    "name": "cabinet",
+    "cell_count": 6128,
+    "class_id": 0,
+    "x": -1.8586,
+    "y": -0.1043,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_3",
+    "name": "cabinet",
+    "cell_count": 3180,
+    "class_id": 0,
+    "x": -2.3195,
+    "y": -1.0743,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_5",
+    "name": "cabinet",
+    "cell_count": 168,
+    "class_id": 0,
+    "x": 5.0474,
+    "y": -0.8675,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_57",
+    "name": "cabinet",
+    "cell_count": 220,
+    "class_id": 0,
+    "x": 6.5194,
+    "y": -1.9024,
+    "zone": "workshop"
+  },
+  {
+    "id": "cabinet_68",
+    "name": "cabinet",
+    "cell_count": 293,
+    "class_id": 0,
+    "x": -16.6932,
+    "y": 3.301,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_121",
+    "name": "door",
+    "cell_count": 217,
+    "class_id": 1,
+    "x": -2.5439,
+    "y": 6.8861,
+    "zone": "doorway"
+  },
+  {
+    "id": "door_150",
+    "name": "door",
+    "cell_count": 10138,
+    "class_id": 1,
+    "x": 21.3386,
+    "y": 6.8127,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_165",
+    "name": "door",
+    "cell_count": 26,
+    "class_id": 1,
+    "x": 17.9728,
+    "y": 14.9479,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_167",
+    "name": "door",
+    "cell_count": 733,
+    "class_id": 1,
+    "x": 14.062,
+    "y": 16.9863,
+    "zone": "doorway"
+  },
+  {
+    "id": "door_18",
+    "name": "door",
+    "cell_count": 6022,
+    "class_id": 1,
+    "x": 1.8106,
+    "y": 8.0299,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_193",
+    "name": "door",
+    "cell_count": 2158,
+    "class_id": 1,
+    "x": 20.7589,
+    "y": 6.215,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_201",
+    "name": "door",
+    "cell_count": 424,
+    "class_id": 1,
+    "x": 13.2826,
+    "y": 5.2755,
+    "zone": "doorway"
+  },
+  {
+    "id": "door_230",
+    "name": "door",
+    "cell_count": 36,
+    "class_id": 1,
+    "x": 5.8388,
+    "y": -1.829,
+    "zone": "workshop"
+  },
+  {
+    "id": "door_27",
+    "name": "door",
+    "cell_count": 1287,
+    "class_id": 1,
+    "x": 1.906,
+    "y": 6.3712,
+    "zone": "corridor"
+  },
+  {
+    "id": "door_61",
+    "name": "door",
+    "cell_count": 182,
+    "class_id": 1,
+    "x": -15.54,
+    "y": 4.7706,
+    "zone": "doorway"
+  },
+  {
+    "id": "door_69",
+    "name": "door",
+    "cell_count": 2486,
+    "class_id": 1,
+    "x": -16.1347,
+    "y": 7.7584,
+    "zone": "doorway"
+  },
+  {
+    "id": "door_97",
+    "name": "door",
+    "cell_count": 1230,
+    "class_id": 1,
+    "x": -10.6894,
+    "y": 4.2766,
+    "zone": "corridor"
+  },
+  {
+    "id": "fire-extinguisher_175",
+    "name": "fire-extinguisher",
+    "cell_count": 191,
+    "class_id": 2,
+    "x": 12.8015,
+    "y": 10.4341,
+    "zone": "corridor"
+  },
+  {
+    "id": "fire-extinguisher_22",
+    "name": "fire-extinguisher",
+    "cell_count": 2578,
+    "class_id": 2,
+    "x": -0.0999,
+    "y": 7.7522,
+    "zone": "corridor"
+  },
+  {
+    "id": "fire-hydrant-box_57",
+    "name": "fire-hydrant-box",
+    "cell_count": 9393,
+    "class_id": 3,
+    "x": -10.3003,
+    "y": 4.7437,
+    "zone": "corridor"
+  },
+  {
+    "id": "laptop_244",
+    "name": "laptop",
+    "cell_count": 183,
+    "class_id": 5,
+    "x": 7.0787,
+    "y": -1.5219,
+    "zone": "workshop"
+  },
+  {
+    "id": "o-seater_17",
+    "name": "o-seater",
+    "cell_count": 860,
+    "class_id": 15,
+    "x": 2.7406,
+    "y": 2.4811,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_129",
+    "name": "shelf",
+    "cell_count": 3175,
+    "class_id": 6,
+    "x": -3.3413,
+    "y": 7.1219,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_16",
+    "name": "shelf",
+    "cell_count": 1027,
+    "class_id": 6,
+    "x": -3.5899,
+    "y": 3.729,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_168",
+    "name": "shelf",
+    "cell_count": 10153,
+    "class_id": 6,
+    "x": 17.5525,
+    "y": 15.1171,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_170",
+    "name": "shelf",
+    "cell_count": 13075,
+    "class_id": 6,
+    "x": 16.0672,
+    "y": 16.2845,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_171",
+    "name": "shelf",
+    "cell_count": 126553,
+    "class_id": 6,
+    "x": 13.1762,
+    "y": 14.0667,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_174",
+    "name": "shelf",
+    "cell_count": 65,
+    "class_id": 6,
+    "x": 12.8384,
+    "y": 10.2777,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_21",
+    "name": "shelf",
+    "cell_count": 2637,
+    "class_id": 6,
+    "x": 3.4181,
+    "y": 4.5523,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_22",
+    "name": "shelf",
+    "cell_count": 24511,
+    "class_id": 6,
+    "x": -2.0436,
+    "y": 0.0733,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_233",
+    "name": "shelf",
+    "cell_count": 409,
+    "class_id": 6,
+    "x": 7.6722,
+    "y": 0.5735,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_237",
+    "name": "shelf",
+    "cell_count": 33,
+    "class_id": 6,
+    "x": 5.8933,
+    "y": -3.2768,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_40",
+    "name": "shelf",
+    "cell_count": 2244,
+    "class_id": 6,
+    "x": -5.7691,
+    "y": 5.3606,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_42",
+    "name": "shelf",
+    "cell_count": 8649,
+    "class_id": 6,
+    "x": -1.8041,
+    "y": 8.0619,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_48",
+    "name": "shelf",
+    "cell_count": 118525,
+    "class_id": 6,
+    "x": -4.9526,
+    "y": 4.9678,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_51",
+    "name": "shelf",
+    "cell_count": 27,
+    "class_id": 6,
+    "x": -8.7303,
+    "y": 9.2238,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_79",
+    "name": "shelf",
+    "cell_count": 378,
+    "class_id": 6,
+    "x": -16.6942,
+    "y": 6.2408,
+    "zone": "corridor"
+  },
+  {
+    "id": "shelf_9",
+    "name": "shelf",
+    "cell_count": 4364,
+    "class_id": 6,
+    "x": -2.3522,
+    "y": 1.9603,
+    "zone": "workshop"
+  },
+  {
+    "id": "shelf_98",
+    "name": "shelf",
+    "cell_count": 2653,
+    "class_id": 6,
+    "x": -11.6426,
+    "y": 6.7022,
+    "zone": "corridor"
+  },
+  {
+    "id": "shoes_16",
+    "name": "shoes",
+    "cell_count": 85,
+    "class_id": 7,
+    "x": 1.7178,
+    "y": 0.1268,
+    "zone": "workshop"
+  },
+  {
+    "id": "shoes_31",
+    "name": "shoes",
+    "cell_count": 37,
+    "class_id": 7,
+    "x": -0.0198,
+    "y": 4.4778,
+    "zone": "workshop"
+  },
+  {
+    "id": "stairs_132",
+    "name": "stairs",
+    "cell_count": 831,
+    "class_id": 8,
+    "x": -1.8099,
+    "y": 7.3865,
+    "zone": "corridor"
+  },
+  {
+    "id": "stairs_151",
+    "name": "stairs",
+    "cell_count": 69701,
+    "class_id": 8,
+    "x": 19.6059,
+    "y": 11.1672,
+    "zone": "staircase"
+  },
+  {
+    "id": "stairs_18",
+    "name": "stairs",
+    "cell_count": 5049,
+    "class_id": 8,
+    "x": -1.7018,
+    "y": -0.1419,
+    "zone": "workshop"
+  },
+  {
+    "id": "stairs_183",
+    "name": "stairs",
+    "cell_count": 5141,
+    "class_id": 8,
+    "x": 18.7264,
+    "y": 8.398,
+    "zone": "corridor"
+  },
+  {
+    "id": "stairs_19",
+    "name": "stairs",
+    "cell_count": 877,
+    "class_id": 8,
+    "x": 3.3368,
+    "y": 4.4291,
+    "zone": "workshop"
+  },
+  {
+    "id": "stairs_45",
+    "name": "stairs",
+    "cell_count": 4098,
+    "class_id": 8,
+    "x": -4.718,
+    "y": 4.9775,
+    "zone": "corridor"
+  },
+  {
+    "id": "stairs_60",
+    "name": "stairs",
+    "cell_count": 1846,
+    "class_id": 8,
+    "x": -11.3248,
+    "y": 6.7708,
+    "zone": "corridor"
+  },
+  {
+    "id": "table_200",
+    "name": "table",
+    "cell_count": 50,
+    "class_id": 9,
+    "x": 14.9301,
+    "y": 3.8606,
+    "zone": "corridor"
+  },
+  {
+    "id": "table_235",
+    "name": "table",
+    "cell_count": 529,
+    "class_id": 9,
+    "x": 4.1619,
+    "y": 1.8563,
+    "zone": "workshop"
+  },
+  {
+    "id": "table_246",
+    "name": "table",
+    "cell_count": 898,
+    "class_id": 9,
+    "x": -0.0442,
+    "y": -1.4141,
+    "zone": "workshop"
+  },
+  {
+    "id": "table_36",
+    "name": "table",
+    "cell_count": 560,
+    "class_id": 9,
+    "x": -1.4077,
+    "y": 3.6341,
+    "zone": "workshop"
+  },
+  {
+    "id": "table_47",
+    "name": "table",
+    "cell_count": 101,
+    "class_id": 9,
+    "x": -2.519,
+    "y": 4.9835,
+    "zone": "corridor"
+  },
+  {
+    "id": "table_5",
+    "name": "table",
+    "cell_count": 1221,
+    "class_id": 9,
+    "x": -2.3476,
+    "y": 1.1553,
+    "zone": "workshop"
+  },
+  {
+    "id": "table_66",
+    "name": "table",
+    "cell_count": 45,
+    "class_id": 9,
+    "x": -16.7131,
+    "y": 3.039,
+    "zone": "corridor"
+  },
+  {
+    "id": "table_7",
+    "name": "table",
+    "cell_count": 217,
+    "class_id": 9,
+    "x": 0.9989,
+    "y": -3.0457,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_1",
+    "name": "trash-can",
+    "cell_count": 1321,
+    "class_id": 10,
+    "x": 4.0446,
+    "y": 1.2862,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_109",
+    "name": "trash-can",
+    "cell_count": 76,
+    "class_id": 10,
+    "x": -4.4644,
+    "y": 7.1313,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_120",
+    "name": "trash-can",
+    "cell_count": 124,
+    "class_id": 10,
+    "x": -1.9954,
+    "y": 7.2064,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_139",
+    "name": "trash-can",
+    "cell_count": 6876,
+    "class_id": 10,
+    "x": 7.1521,
+    "y": 5.109,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_147",
+    "name": "trash-can",
+    "cell_count": 506,
+    "class_id": 10,
+    "x": 11.34,
+    "y": 5.0384,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_156",
+    "name": "trash-can",
+    "cell_count": 1012,
+    "class_id": 10,
+    "x": 20.7889,
+    "y": 5.1511,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_2",
+    "name": "trash-can",
+    "cell_count": 2467,
+    "class_id": 10,
+    "x": 4.9329,
+    "y": -2.9278,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_23",
+    "name": "trash-can",
+    "cell_count": 24,
+    "class_id": 10,
+    "x": 2.8926,
+    "y": 4.6709,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_27",
+    "name": "trash-can",
+    "cell_count": 22,
+    "class_id": 10,
+    "x": -1.3717,
+    "y": 0.3909,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_43",
+    "name": "trash-can",
+    "cell_count": 91,
+    "class_id": 10,
+    "x": -2.2459,
+    "y": 4.9057,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_54",
+    "name": "trash-can",
+    "cell_count": 54,
+    "class_id": 10,
+    "x": -1.9358,
+    "y": 2.5349,
+    "zone": "workshop"
+  },
+  {
+    "id": "trash-can_65",
+    "name": "trash-can",
+    "cell_count": 10990,
+    "class_id": 10,
+    "x": -16.7942,
+    "y": 6.2872,
+    "zone": "corridor"
+  },
+  {
+    "id": "trash-can_91",
+    "name": "trash-can",
+    "cell_count": 1138,
+    "class_id": 10,
+    "x": -12.5639,
+    "y": 6.6856,
+    "zone": "corridor"
+  },
+  {
+    "id": "tv_1",
+    "name": "tv",
+    "cell_count": 732,
+    "class_id": 11,
+    "x": -3.706,
+    "y": 1.1767,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_231",
+    "name": "tv",
+    "cell_count": 115,
+    "class_id": 11,
+    "x": 2.9848,
+    "y": -2.249,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_239",
+    "name": "tv",
+    "cell_count": 83,
+    "class_id": 11,
+    "x": 8.4768,
+    "y": -0.5845,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_240",
+    "name": "tv",
+    "cell_count": 102,
+    "class_id": 11,
+    "x": 9.5525,
+    "y": -2.6495,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_248",
+    "name": "tv",
+    "cell_count": 99,
+    "class_id": 11,
+    "x": 0.4766,
+    "y": -3.097,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_31",
+    "name": "tv",
+    "cell_count": 239,
+    "class_id": 11,
+    "x": -2.0081,
+    "y": 0.6877,
+    "zone": "workshop"
+  },
+  {
+    "id": "tv_7",
+    "name": "tv",
+    "cell_count": 1625,
+    "class_id": 11,
+    "x": 3.4626,
+    "y": 1.5819,
+    "zone": "workshop"
+  },
+  {
+    "id": "vertical-ladder_116",
+    "name": "vertical-ladder",
+    "cell_count": 5928,
+    "class_id": 12,
+    "x": -5.6409,
+    "y": 4.8789,
+    "zone": "corridor"
+  },
+  {
+    "id": "vertical-ladder_127",
+    "name": "vertical-ladder",
+    "cell_count": 2868,
+    "class_id": 12,
+    "x": -3.9613,
+    "y": 4.9517,
+    "zone": "corridor"
+  },
+  {
+    "id": "vertical-ladder_55",
+    "name": "vertical-ladder",
+    "cell_count": 2098,
+    "class_id": 12,
+    "x": -10.9515,
+    "y": 6.8251,
+    "zone": "corridor"
+  },
+  {
+    "id": "vertical-ladder_62",
+    "name": "vertical-ladder",
+    "cell_count": 18914,
+    "class_id": 12,
+    "x": -16.4624,
+    "y": 4.9419,
+    "zone": "corridor"
+  }
+]

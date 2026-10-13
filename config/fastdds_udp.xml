@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    fastdds_udp.xml — FastDDS profile untuk RTABMap + Nav2 environment
+    - Disable SHM (port exhaustion dengan banyak node)
+    - UDP only dengan buffer 4MB
+    - interfaceWhiteList: loopback (intra-machine) + LAN eno1 (192.168.1.10)
+      Mengapa tidak WiFi (192.168.0.148): PC Husky tidak bisa reach kmp-orin via WiFi
+      (AP isolation), sehingga DDS data ke WiFi IP kmp-orin selalu drop.
+      Dengan whitelist ini, PC Husky hanya mendapat locator 192.168.1.10 (LAN) yang reachable.
+
+    - [2026-07-14] SHM dicoba lagi DUA KALI hari ini untuk fix CPU tinggi
+      sistemik di kmp-orin (lihat memory dds_cpu_investigation.md) — KEDUA
+      KALI direvert karena robot jadi tidak bisa digerakkan via joystick
+      manual (indikator joystick tetap hijau/terhubung, tapi robot diam —
+      safety-relevant regression, bukan cuma korelasi waktu kebetulan).
+      JANGAN aktifkan SHM lagi tanpa test di lingkungan non-robot-fisik dulu
+      (mis. cuma kmp-orin+laptop, tanpa PC Husky/motor live) untuk isolasi
+      akar masalahnya. CPU tinggi ternyata sebagian besar bisa diatasi tanpa
+      SHM dengan cara lain: matikan rosbridge/rosapi (kalau web dashboard
+      tidak dibutuhkan) dan AnyDesk (screen streaming = traffic WiFi berat)
+      saat melakukan physical navigation test.
+-->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+
+    <transport_descriptors>
+        <transport_descriptor>
+            <transport_id>udp_transport</transport_id>
+            <type>UDPv4</type>
+            <sendBufferSize>4194304</sendBufferSize>
+            <receiveBufferSize>4194304</receiveBufferSize>
+            <interfaceWhiteList>
+                <address>127.0.0.1</address>
+                <address>192.168.1.10</address>
+            </interfaceWhiteList>
+        </transport_descriptor>
+    </transport_descriptors>
+
+    <participant profile_name="default_profile" is_default_profile="true">
+        <rtps>
+            <useBuiltinTransports>false</useBuiltinTransports>
+            <userTransports>
+                <transport_id>udp_transport</transport_id>
+            </userTransports>
+            <sendSocketBufferSize>4194304</sendSocketBufferSize>
+            <listenSocketBufferSize>4194304</listenSocketBufferSize>
+        </rtps>
+    </participant>
+
+</profiles>

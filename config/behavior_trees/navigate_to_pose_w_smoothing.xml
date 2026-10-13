@@ -1,0 +1,48 @@
+<!--
+  Modifikasi dari navigate_to_pose_w_replanning_and_recovery.xml (default Nav2 Humble).
+  [2026-07-07] Tambah node SmoothPath di antara ComputePathToPose dan FollowPath —
+  default BT Nav2 TIDAK memanggil smoother_server sama sekali, path mentah dari
+  planner (terutama NavfnPlanner) bisa zigzag (divalidasi: total turning 32.7 rad
+  turun jadi 14.1 rad setelah smoothing, lihat memory path_preview_test.md).
+  smoother_id="simple_smoother" harus cocok dgn nama di config/nav2_params.yaml
+  (smoother_server.ros__parameters.smoother_plugins).
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+      <PipelineSequence name="NavigateWithReplanning">
+        <RateController hz="1.0">
+          <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+            <Sequence name="ComputeAndSmooth">
+              <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+              <Fallback name="SmoothOrKeepRaw">
+                <SmoothPath unsmoothed_path="{path}" smoothed_path="{path}"
+                            smoother_id="simple_smoother"
+                            max_smoothing_duration="3.0"
+                            check_for_collisions="true"/>
+                <AlwaysSuccess/>
+              </Fallback>
+            </Sequence>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+          </RecoveryNode>
+        </RateController>
+        <RecoveryNode number_of_retries="1" name="FollowPath">
+          <FollowPath path="{path}" controller_id="FollowPath"/>
+          <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+        </RecoveryNode>
+      </PipelineSequence>
+      <ReactiveFallback name="RecoveryFallback">
+        <GoalUpdated/>
+        <RoundRobin name="RecoveryActions">
+          <Sequence name="ClearingActions">
+            <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+          </Sequence>
+          <Spin spin_dist="1.57"/>
+          <Wait wait_duration="5"/>
+          <BackUp backup_dist="0.30" backup_speed="0.05"/>
+        </RoundRobin>
+      </ReactiveFallback>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>

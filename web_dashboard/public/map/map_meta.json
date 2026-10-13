@@ -1,0 +1,23 @@
+{
+  "demo": true,
+  "note": "Data DEMO dari folder sementara/ + output/scene_zone_test — ganti dengan export live map_server/RTABMap saat robot riil terhubung.",
+  "width": 791,
+  "height": 472,
+  "resolution": 0.05,
+  "origin": [
+    -18,
+    -4.06,
+    0
+  ],
+  "occupiedThresh": 0.65,
+  "freeThresh": 0.25,
+  "zoneLabelMap": {
+    "0": "unknown",
+    "1": "corridor",
+    "2": "open_area",
+    "3": "doorway",
+    "4": "staircase",
+    "5": "wall",
+    "6": "workshop"
+  }
+}

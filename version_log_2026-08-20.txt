@@ -1,0 +1,70 @@
+================================================================
+VERSION LOG — Jetson AGX Orin (kmp-orin)
+Tanggal        : 2026-08-20
+Device         : NVIDIA Jetson AGX Orin Developer Kit
+Host           : kmp-orin@192.168.0.148
+Repo commit    : 78a65b8891528c1665dc23cd9c395ca2c48f8030 (branch main, up to date dgn origin/main)
+================================================================
+
+Komponen                              Versi
+----------------------------------------------------------------------
+JetPack / L4T                         R36, REVISION 4.7 (GCID 42132812)
+ROS 2 Distro                          Humble
+RTAB-Map (ros-humble-rtabmap-slam)    0.22.1
+Python                                3.10.12
+CUDA Toolkit (nvcc)                   12.6.68 (toolkit meta-package 12.6.11)
+cuDNN                                 8.9.7 (libcudnn8 8.9.7.29-1+cuda12.2)
+TensorRT (libnvinfer / python)        10.3.0.30 (python binding: 10.3.0)
+PyTorch                               2.3.0 (CUDA available: True)
+Ultralytics (YOLOv11m-seg)            8.4.48
+
+----------------------------------------------------------------------
+Catatan:
+----------------------------------------------------------------------
+- Paket apt "nvidia-tensorrt" meta-package terbaca versi 6.2.1+b38 — ini BUKAN versi
+  TensorRT sesungguhnya, itu nomor meta-package L4T/BSP. Versi TensorRT aktual yang
+  dipakai runtime .engine adalah 10.3.0.30 (dikonfirmasi via libnvinfer* dan
+  `python3 -c "import tensorrt; print(tensorrt.__version__)"`).
+- `nvcc` tidak ada di PATH default, perlu path eksplisit /usr/local/cuda/bin/nvcc —
+  CUDA toolkit tetap terinstall lengkap di /usr/local/cuda-12.6.
+- Model YOLO aktif: best_brin_yolo11m_v1.engine (TensorRT engine, dikompilasi lokal
+  di board ini — engine TensorRT TIDAK portable ke device/versi TensorRT lain, kalau
+  Jetson diganti/di-reflash versi JetPack lain, model harus di-export ulang).
+
+----------------------------------------------------------------------
+Raw output (untuk arsip/audit):
+----------------------------------------------------------------------
+[ROS2]
+ROS_DISTRO=humble
+
+[JetPack/L4T — /etc/nv_tegra_release]
+# R36 (release), REVISION: 4.7, GCID: 42132812, BOARD: generic, EABI: aarch64, DATE: Thu Sep 18 22:54:44 UTC 2025
+# KERNEL_VARIANT: oot
+TARGET_USERSPACE_LIB_DIR=nvidia
+TARGET_USERSPACE_LIB_DIR_PATH=usr/lib/aarch64-linux-gnu/nvidia
+
+[RTAB-Map — dpkg]
+ros-humble-rtabmap-slam    0.22.1-1jammy.20260427.155953    arm64
+
+[ultralytics]
+ultralytics 8.4.48
+
+[CUDA — nvcc]
+Cuda compilation tools, release 12.6, V12.6.68
+Build cuda_12.6.r12.6/compiler.34714021_0
+
+[TensorRT — dpkg libnvinfer10]
+libnvinfer10    10.3.0.30-1+cuda12.5    arm64
+python3 -c import tensorrt: tensorrt 10.3.0
+
+[Python]
+Python 3.10.12
+
+[cuDNN — /usr/include/cudnn_version.h]
+CUDNN_MAJOR 8
+CUDNN_MINOR 9
+CUDNN_PATCHLEVEL 7
+(libcudnn8 8.9.7.29-1+cuda12.2)
+
+[PyTorch — bonus]
+torch 2.3.0, cuda_available: True
