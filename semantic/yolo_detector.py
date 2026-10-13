@@ -129,7 +129,7 @@ class YoloDetectorNode(Node):
     def __init__(self):
         super().__init__('yolo_detector')
         self.declare_parameter('model_path',
-            '/root/ws/project/rtabmap_allinone/models/best_brin_yolo11m_v1_20260517_0724.pt')
+            '/root/ws/project/rtabmap_allinone/models/best_brin_yolo11m_v2_chaircone.pt')
         self.declare_parameter('confidence',      0.5)
         self.declare_parameter('device',          'cpu')
         self.declare_parameter('process_every_n', 3)
