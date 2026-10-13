@@ -1,1 +1,20 @@
 .vscode
+__pycache__/
+*.pyc
+
+# Agent session notes, not project source
+memory/
+
+# Simulation / fake-robot tooling — not committed (dev-machine only)
+fake_robot_sim.py
+launch/nav2_sim.launch.py
+config/nav2_sim.rviz
+config/nav2_params_jazzy_plugin_overrides.yaml
+sim_video/
+
+# Generated, regenerable
+web_dashboard/node_modules/
+
+# Scratch/non-canonical dev data (249MB rtabmap.db — exceeds GitHub's
+# 100MB hard limit; not the canonical location for these assets anyway)
+web_dashboard/sementara/
