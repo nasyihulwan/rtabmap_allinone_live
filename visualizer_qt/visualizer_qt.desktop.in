@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Qt RTAB-Map Visualizer
+Comment=Onboard real-time Qt/QML visualizer (camera/map/log/start-control) for mapping/K1/K2 sessions
+Exec=__RUN_SCRIPT__
+Terminal=false
+Categories=Utility;

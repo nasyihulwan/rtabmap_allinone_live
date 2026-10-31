@@ -1,0 +1,20 @@
+1. Robot animation + battery status
+2. Separately panel feature, e.g: Semantic panel (can use model, and have detatil of model classes and performance metrics), 
+use with or wihout segformer, explain what is segformer dll. e.g RTAB-Map, can configure parameters and explain it 
+3. optional: visualize current tf tree 
+4. posisi robot terhadap map
+5. ketika dijalankan dari app, tidak usah buka terminal tambahan, atau rviz. karna visual dan log cukup di app\
+6. ketika jalan map only, semantic nodes nya juga ikut kebuka:
+    - harus dibatas peruntukannya, jangan langsung start semua secara bersamaan
+=== 7. untuk pose estimate nanti, sepertinya harus di fix kan titik nya, karna tidak akan ada rviz
+=== 8. map sepertinya tidak usah ada di main panel, peruntukannya kan misal untuk sesi eksperimen, mending taro di sana saja 
+9. di main panel, utamanya hanya untuk informasi status sensor dll, log, camera, map
+
+
+ekspektasi:
+di panel k1, saya tinggal tekan 1 tombol dan semua pipeline yang dibutuhkan sudah otomatis jalan, dan saya tinggal gerakkan robotnya, tapi gimana dengan pose estimate nya?
+
+
+
+update:
+10. kalo misal lagi jalan satu pipeline, misal K1, berarti fitur lain harus di disable, biar tidak ada tabrakan 
